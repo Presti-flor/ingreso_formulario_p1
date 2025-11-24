@@ -1,7 +1,8 @@
 const { google } = require('googleapis');
 
-// Obtener las credenciales desde la variable de entorno
-console.log(process.env.google_sheets_credentials); // Debug
+// ⚠️ IMPORTANTE: NO loguear las credenciales en producción
+// console.log(process.env.google_sheets_credentials); // Debug solo local si lo necesitas
+
 const creds = JSON.parse(process.env.google_sheets_credentials);
 
 // Autenticación con Google API
@@ -25,7 +26,7 @@ function generateUniqueId() {
 /**
  * Verifica si ya existe un registro con el mismo ID en la hoja.
  * Asumimos que el ID se guarda en la columna H (8ª columna),
- * porque en addRecord lo estás enviando como último valor.
+ * porque en addRecord lo estamos enviando como último valor.
  */
 async function existsSameRecord({ id }) {
   if (!id) return false; // sin id no hacemos control
@@ -51,23 +52,20 @@ async function existsSameRecord({ id }) {
     return found;
   } catch (error) {
     console.error('Error verificando duplicado en Google Sheets:', error);
-    // En caso de error, por seguridad dejamos continuar (false),
-    // o si quieres ser más estricto podrías devolver true.
+    // En caso de error, por seguridad dejamos continuar (false)
     return false;
   }
 }
 
 // Función para agregar una nueva fila
+// Espera un objeto: { id, fecha, bloque, variedad, tallos, etapa, tipo, tamaño }
 async function addRecord(data) {
   const sanitizedBloque = String(data.bloque || '').replace(/[^0-9]/g, '');
 
   // Si el servidor/envía un id, usamos ese. Si no, generamos uno.
   const finalId = data.id || generateUniqueId();
 
-  // OJO: el servidor manda `tamano` (sin ñ)
-  const tamano = data.tamaño || data.tamaño || '';
-
-  // Depuración
+  // Depuración sana
   console.log('Datos antes de enviar a Google Sheets:', {
     fecha: data.fecha,
     bloque: sanitizedBloque,
@@ -87,14 +85,14 @@ async function addRecord(data) {
       resource: {
         values: [
           [
-            data.fecha,                         // A: fecha
-            sanitizedBloque,                    // B: bloque
-            data.variedad || '',                // C: variedad
-            data.tamaño,                             // D: tamaño
-            tallos ?? '',           // E: numero_tallos
-            data.etapa || '',                   // F: etapa
-            data.tipo || '',                    // G: tipo
-            finalId,                            // H: id
+            data.fecha,                 // A: fecha
+            sanitizedBloque,            // B: bloque
+            data.variedad || '',        // C: variedad
+            data.tamaño || '',          // D: tamaño
+            data.tallos ?? '',          // E: tallos
+            data.etapa || '',           // F: etapa
+            data.tipo || '',            // G: tipo
+            finalId,                    // H: id
           ],
         ],
       },

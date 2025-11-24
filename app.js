@@ -20,19 +20,17 @@ const pool = new Pool({
 });
 
 /*
-  Asegúrate que en PostgreSQL tengas algo así (misma tabla que el otro servicio):
+  Asegúrate que en PostgreSQL tengas algo así (adaptado a tu diseño de ID NO autoincremental):
 
   CREATE TABLE IF NOT EXISTS registrosp1 (
-    id              SERIAL PRIMARY KEY,
-    id_qr           TEXT NOT NULL,
-    fecha           DATE NOT NULL,
-    bloque          INTEGER NOT NULL,
-    variedad        TEXT NOT NULL,
-    tallos          INTEGER NOT NULL,
-    tamaño          TEXT,
-    etapa           TEXT,
-    tipo            TEXT,
-    creado_en       TIMESTAMPTZ DEFAULT NOW()
+    id        TEXT NOT NULL,
+    fecha     DATE NOT NULL,
+    bloque    INTEGER NOT NULL,
+    variedad  TEXT NOT NULL,
+    tallos    INTEGER NOT NULL,
+    tamaño    TEXT,
+    etapa     TEXT,
+    tipo      TEXT
   );
 */
 
@@ -42,19 +40,19 @@ async function saveToPostgresForm({ id, fecha, bloque, variedad, tallos, tamaño
     INSERT INTO registrosp1
       (id,  fecha, bloque, variedad, tallos, etapa, tipo, tamaño)
     VALUES
-      ($1,     $2,    $3,     $4,      $5,     $6,    $7,   $8)
+      ($1,  $2,    $3,     $4,      $5,     $6,   $7,   $8)
     RETURNING *;
   `;
 
   const values = [
-    id,
-    fecha,
-    parseInt(bloque, 10),
-    variedad,
-    tallos,
-    etapa || null,
-    tipo || null,
-    tamaño || null,
+    id,                      // id (texto, tú lo defines)
+    fecha,                   // fecha 'YYYY-MM-DD'
+    parseInt(bloque, 10),    // bloque
+    variedad,                // variedad
+    tallos,                  // tallos (número)
+    etapa || null,           // etapa
+    tipo || null,            // tipo
+    tamaño || null,          // tamaño
   ];
 
   console.log('🧪 INSERT Form → Postgres', { query, values });
@@ -95,8 +93,8 @@ function allowedSizes(variedad, bloque) {
   return [];
 }
 
-function isSizeAllowed(variedad, bloque, tamano) {
-  const t = (tamano || '').toLowerCase().trim();
+function isSizeAllowed(variedad, bloque, tamaño) {
+  const t = (tamaño || '').toLowerCase().trim();
   return allowedSizes(variedad, bloque).includes(t);
 }
 
@@ -104,7 +102,7 @@ function isSizeAllowed(variedad, bloque, tamano) {
 // tipo = nacional => jamás guarda tamaño.
 function normalizeSizeForStorage(variedad, bloque, tamaño, tipo) {
   if ((tipo || '').toLowerCase() === 'nacional') return null; // nacional jamás guarda tamaño
-  const t = (tamano || '').toLowerCase().trim();
+  const t = (tamaño || '').toLowerCase().trim();
   if (!isSizeAllowed(variedad, bloque, t)) return null; // inválidos => no guardar
   if (t === 'na') return null; // NA => celda vacía
   return t; // 'largo' | 'corto' | 'ruso'
@@ -114,12 +112,12 @@ function normalizeSizeForStorage(variedad, bloque, tamaño, tipo) {
 async function processAndSaveForm({ id, variedad, tamaño, tallos, etapa, bloque, tipo, force }) {
   if (!id) throw new Error('Falta el parámetro id');
   if (!variedad || !bloque || !tallos) {
-    throw new Error('Faltan datos obligatorios: variedad, bloque, numero_tallos');
+    throw new Error('Faltan datos obligatorios: variedad, bloque, tallos');
   }
 
-  const tallosNum = parseInt(numero_tallos, 10);
+  const tallosNum = parseInt(tallos, 10);
   if (isNaN(tallosNum) || tallosNum < 1) {
-    throw new Error('El campo número de tallos debe ser un número positivo');
+    throw new Error('El campo tallos debe ser un número positivo');
   }
 
   const sanitizedBloque = (bloque || '').replace(/[^0-9]/g, '');
@@ -129,7 +127,7 @@ async function processAndSaveForm({ id, variedad, tamaño, tallos, etapa, bloque
   // Normalizar tamaño para almacenar (en BD: "tamaño")
   const sizeForStorage = normalizeSizeForStorage(variedad, sanitizedBloque, tamaño, tipoNorm);
 
-  // Objeto para Google Sheets (respeta nombres originales)
+  // Objeto para Google Sheets (coincide con googleSheets.js)
   const dataToSave = {
     id,
     fecha,
@@ -141,7 +139,7 @@ async function processAndSaveForm({ id, variedad, tamaño, tallos, etapa, bloque
   };
 
   if (sizeForStorage !== null) {
-    dataToSave.tamano = sizeForStorage;
+    dataToSave.tamaño = sizeForStorage;
   }
 
   // Antiduplicado basado en Google Sheets: ID único en la hoja
@@ -531,16 +529,30 @@ app.get('/', (req, res) => {
 
 // ==================== RUTA POST ============================
 app.post('/submit', ipWhitelist, async (req, res) => {
-  const { id, variedad, tamano, tallos, etapa, bloque, tipo, force } = req.body;
+  const { id, variedad, tamano, numero_tallos, etapa, bloque, tipo, force } = req.body;
   const forceFlag = force === 'true' || force === '1';
 
-  console.log('[SUBMIT]', { fromIp: getClientIp(req), id, variedad, tamano, numero_tallos, etapa, bloque, tipo, forceFlag });
+  // Mapeamos a los nombres internos que usa la lógica
+  const tallos = numero_tallos;
+  const tamaño = tamano;
+
+  console.log('[SUBMIT]', {
+    fromIp: getClientIp(req),
+    id,
+    variedad,
+    tamaño,
+    tallos,
+    etapa,
+    bloque,
+    tipo,
+    forceFlag,
+  });
 
   try {
     const saved = await processAndSaveForm({
       id,
       variedad,
-      tamano,
+      tamaño,
       tallos,
       etapa,
       bloque,
@@ -557,8 +569,8 @@ app.post('/submit', ipWhitelist, async (req, res) => {
          <p><strong>ID:</strong> ${saved.id}</p>
          <p><strong>Variedad:</strong> ${saved.variedad}</p>
          <p><strong>Bloque:</strong> ${saved.bloque}</p>
-         <p><strong>Número de tallos:</strong> ${saved.numero_tallos}</p>
-         ${saved.tamano ? `<p><strong>Tamaño:</strong> ${saved.tamano}</p>` : ''}
+         <p><strong>Tallos:</strong> ${saved.tallos}</p>
+         ${saved.tamaño ? `<p><strong>Tamaño:</strong> ${saved.tamaño}</p>` : ''}
       </body>
       </html>
     `);
@@ -598,61 +610,22 @@ app.post('/submit', ipWhitelist, async (req, res) => {
               padding: 32px 28px;
               text-align: center;
             }
-            .chip {
-              display: inline-flex;
-              align-items: center;
-              gap: 8px;
-              font-size: 0.95rem;
-              padding: 6px 14px;
-              border-radius: 999px;
-              background: rgba(248, 113, 113, 0.1);
-              color: #7f1d1d;
-              margin-bottom: 14px;
-            }
-            .chip-dot {
-              width: 8px;
-              height: 8px;
-              border-radius: 999px;
-              background: #f97316;
-            }
-            .big-emoji {
-              font-size: 3.2rem;
-              margin-bottom: 10px;
-            }
-            .title {
-              font-size: 2.2rem;
-              font-weight: 800;
-              margin-bottom: 8px;
-              color: #7c2d12;
-            }
-            .body {
-              font-size: 1.05rem;
-              line-height: 1.5;
-              margin-top: 8px;
-            }
-            .highlight {
-              font-weight: 700;
-            }
           </style>
         </head>
         <body>
           <main class="card">
-            <div class="chip">
-              <span class="chip-dot"></span>
-              Posible doble registro
-            </div>
-            <div class="big-emoji">⚠️</div>
-            <h1 class="title">Este código ya fue escaneado</h1>
-            <div class="body">
-              <p>Este ID ya se encuentra registrado. Verifica antes de volver a enviar.</p>
-            </div>
+            <h1>⚠️ Este código ya fue registrado</h1>
+            <p>Si crees que es un error, contacta con el administrador.</p>
           </main>
         </body>
         </html>
       `);
     }
 
-    return res.status(500).send('Error interno al procesar el formulario.');
+    return res.status(500).send(`
+      <h1>Error interno al procesar el formulario</h1>
+      <p>${error.message}</p>
+    `);
   }
 });
 
