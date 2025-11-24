@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const { addRecord } = require('./googleSheets');
+// AHORA IMPORTA existsSameRecord TAMBIÉN
+const { addRecord, existsSameRecord } = require('./googleSheets');
 
 const app = express();
 const port = 3000;
@@ -56,11 +57,81 @@ function normalizeSizeForStorage(variedad, bloque, tamano, tipo) {
   return t; // 'largo' | 'corto' | 'ruso'
 }
 
+/** =============== LÓGICA CENTRAL: PROCESAR + ANTIDUPLICADO =============== */
+async function processAndSaveForm({ id, variedad, tamano, numero_tallos, etapa, bloque, tipo, force }) {
+  if (!id) throw new Error('Falta el parámetro id');
+  if (!variedad || !bloque || !numero_tallos) {
+    throw new Error('Faltan datos obligatorios: variedad, bloque, numero_tallos');
+  }
+
+  const tallosNum = parseInt(numero_tallos, 10);
+  if (isNaN(tallosNum) || tallosNum < 1) {
+    throw new Error('El campo número de tallos debe ser un número positivo');
+  }
+
+  const sanitizedBloque = (bloque || '').replace(/[^0-9]/g, '');
+  const fecha = new Date().toISOString().split('T')[0];
+  const tipoNorm = (tipo || '').toLowerCase();
+
+  // Normalizar tamaño para guardar
+  const sizeForStorage = normalizeSizeForStorage(variedad, sanitizedBloque, tamano, tipoNorm);
+
+  const dataToSave = {
+    id,
+    fecha,
+    bloque: sanitizedBloque,
+    variedad,
+    numero_tallos: tallosNum,
+    etapa: etapa || '',
+    tipo: tipoNorm,
+  };
+
+  if (sizeForStorage !== null) {
+    dataToSave.tamano = sizeForStorage;
+  }
+
+  // Antiduplicado estilo /api/registrar
+  if (!force) {
+    const yaExiste = await existsSameRecord({
+      id,
+      fecha,
+      bloque: sanitizedBloque,
+      variedad,
+      numero_tallos: tallosNum,
+      tamano: sizeForStorage || '',
+      etapa: etapa || '',
+      tipo: tipoNorm,
+    });
+
+    if (yaExiste) {
+      const err = new Error('Este código ya fue registrado antes.');
+      err.code = 'DUPLICATE';
+      throw err;
+    }
+  }
+
+  await addRecord(dataToSave);
+
+  console.log('✅ [FORM] Registrado correctamente:', {
+    id,
+    fecha,
+    bloque: sanitizedBloque,
+    variedad,
+    numero_tallos: tallosNum,
+    tamano: sizeForStorage,
+    etapa,
+    tipo: tipoNorm,
+  });
+
+  return dataToSave;
+}
+
 // ==================== RUTA PRINCIPAL ==========================
 app.get('/', (req, res) => {
   const bloque = req.query.bloque || '3';
   const etapa = req.query.etapa || '';
   const tipo = req.query.tipo || '';
+  const id = req.query.id || ''; // ⬅️ ID VIENE POR QUERY (igual que en el QR)
 
   // ======= FORMULARIO TIPO NACIONAL (tema naranja) =============
   if (tipo === 'nacional') {
@@ -104,7 +175,6 @@ app.get('/', (req, res) => {
     } else if (bloque === '9') {
       variedades = [
         { value: 'freedom', label: 'Freedom' },
-        
       ];
     } else if (bloque === '10') {
       variedades = [
@@ -117,18 +187,18 @@ app.get('/', (req, res) => {
         { value: 'whithe ohora', label: 'Whithe Ohora'},
         { value: 'pink ohora', label: 'Pink Ohora'},
         { value: 'mondial', label: 'Mondial'},
-      ]
+      ];
     } else if (bloque === '12') {
       variedades = [
         { value: 'mondial', label: 'Mondial'},
         { value: 'blessing', label: 'Blessing'},
         { value: 'pink amareto', label: 'Pink Amareto'},
         { value: 'sommersand', label: 'Sommersand'},
-      ]
+      ];
     } else if (bloque === '13') {
       variedades = [
         { value: 'freedom', label: 'Freedom'},
-      ]
+      ];
     }
 
     return res.send(`
@@ -140,8 +210,8 @@ app.get('/', (req, res) => {
         <link rel="stylesheet" type="text/css" href="/style.css"/>
         <style>
           body.theme-nacional-orange {
-            background: #fdfdfd; /* mismo fondo neutro */
-            color: #d85b00; /* tono naranja */
+            background: #fdfdfd;
+            color: #d85b00;
             font-family: 'Poppins', sans-serif;
           }
           .form-container {
@@ -185,6 +255,7 @@ app.get('/', (req, res) => {
         <div class="form-container">
           <h1 class="title">REGISTRO NACIONAL</h1>
           <h2 class="subtitle">Bloque ${bloque} ${etapa ? `- Etapa: ${etapa.charAt(0).toUpperCase() + etapa.slice(1)}` : ''}</h2>
+          <p><strong>ID:</strong> ${id || '(sin ID)'}</p>
           <form action="/submit" method="POST">
             <label for="bloque">Bloque:</label>
             <p style="font-size: 1.5em; padding: 10px;">${bloque}</p><br><br>
@@ -200,6 +271,7 @@ app.get('/', (req, res) => {
             <input type="hidden" name="bloque" value="${bloque}" />
             <input type="hidden" name="etapa" value="${etapa}" />
             <input type="hidden" name="tipo" value="nacional" />
+            <input type="hidden" name="id" value="${id}" />
 
             <input type="submit" value="Enviar">
           </form>
@@ -256,39 +328,38 @@ app.get('/', (req, res) => {
     ];
     seleccionVariedad = 'coral reff';
   } else if (bloque === '9') {
-      variedades = [
-        { value: 'freedom', label: 'Freedom' },
-        
-      ];
-      seleccionVariedad = 'freedom';
-    } else if (bloque === '10') {
-      variedades = [
-        { value: 'shimmer', label: 'Shimmer'},
-        { value: 'freedom', label: 'Freedom'},
-      ];
-      seleccionVariedad = 'shimmer';
-    } else if (bloque === '11') {
-      variedades = [
-        { value: 'pink mondial', label: 'Pink Mondial'},
-        { value: 'whithe ohora', label: 'Whithe Ohora'},
-        { value: 'pink ohora', label: 'Pink Ohora'},
-        { value: 'mondial', label: 'Mondial'},
-      ];
-      seleccionVariedad = 'pink mondial';
-    } else if (bloque === '12') {
-      variedades = [
-        { value: 'mondial', label: 'Mondial'},
-        { value: 'blessing', label: 'Blessing'},
-        { value: 'pink amareto', label: 'Pink Amareto'},
-        { value: 'sommersand', label: 'Sommersand'},
-      ];
-      seleccionVariedad = 'mondial';
-    } else if (bloque === '13') {
-      variedades = [
-        { value: 'freedom', label: 'Freedom'},
-      ];
-      seleccionVariedad = 'freedom';
-    }
+    variedades = [
+      { value: 'freedom', label: 'Freedom' },
+    ];
+    seleccionVariedad = 'freedom';
+  } else if (bloque === '10') {
+    variedades = [
+      { value: 'shimmer', label: 'Shimmer'},
+      { value: 'freedom', label: 'Freedom'},
+    ];
+    seleccionVariedad = 'shimmer';
+  } else if (bloque === '11') {
+    variedades = [
+      { value: 'pink mondial', label: 'Pink Mondial'},
+      { value: 'whithe ohora', label: 'Whithe Ohora'},
+      { value: 'pink ohora', label: 'Pink Ohora'},
+      { value: 'mondial', label: 'Mondial'},
+    ];
+    seleccionVariedad = 'pink mondial';
+  } else if (bloque === '12') {
+    variedades = [
+      { value: 'mondial', label: 'Mondial'},
+      { value: 'blessing', label: 'Blessing'},
+      { value: 'pink amareto', label: 'Pink Amareto'},
+      { value: 'sommersand', label: 'Sommersand'},
+    ];
+    seleccionVariedad = 'mondial';
+  } else if (bloque === '13') {
+    variedades = [
+      { value: 'freedom', label: 'Freedom'},
+    ];
+    seleccionVariedad = 'freedom';
+  }
 
   res.send(`
     <html lang="es">
@@ -308,6 +379,7 @@ app.get('/', (req, res) => {
       <div class="form-container">
         <h1>FIN DE CORTE — REGISTRO</h1>
         <h2>Bloque ${bloque} ${etapa ? `— Etapa: ${etapa.charAt(0).toUpperCase() + etapa.slice(1)}` : ''}</h2>
+        <p><strong>ID:</strong> ${id || '(sin ID)'}</p>
 
         <form action="/submit" method="POST" id="registroForm">
           <label for="bloque">Bloque:</label>
@@ -330,6 +402,7 @@ app.get('/', (req, res) => {
           <input type="hidden" name="etapa" value="${etapa}" />
           <input type="hidden" name="bloque" value="${bloque}" />
           <input type="hidden" name="tipo" value="fin_corte" />
+          <input type="hidden" name="id" value="${id}" />
 
           <input type="submit" value="Enviar">
         </form>
@@ -400,41 +473,184 @@ app.get('/', (req, res) => {
 
 // ==================== RUTA POST ============================
 app.post('/submit', ipWhitelist, async (req, res) => {
-  const { variedad, tamano, numero_tallos, etapa, bloque, tipo } = req.body;
+  const { id, variedad, tamano, numero_tallos, etapa, bloque, tipo, force } = req.body;
+  const forceFlag = force === 'true' || force === '1';
 
-  const sanitizedBloque = (bloque || '').replace(/[^0-9]/g, '');
-  const sanitizedNumeroTallos = parseInt(numero_tallos, 10);
-  const fecha = new Date().toISOString().split('T')[0];
-
-  const data = {
-    fecha,
-    bloque: sanitizedBloque,
-    variedad,
-    numero_tallos: sanitizedNumeroTallos,
-    etapa: etapa || '',
-    tipo: tipo || '',
-  };
-
-  const sizeForStorage = normalizeSizeForStorage(variedad, sanitizedBloque, tamano, tipo);
-  if (sizeForStorage !== null) {
-    data.tamaño = sizeForStorage;
-  }
-
-  console.log('[SUBMIT]', { fromIp: getClientIp(req), data });
+  console.log('[SUBMIT]', { fromIp: getClientIp(req), id, variedad, tamano, numero_tallos, etapa, bloque, tipo, forceFlag });
 
   try {
-    await addRecord(data);
-    res.send(`
+    const saved = await processAndSaveForm({
+      id,
+      variedad,
+      tamano,
+      numero_tallos,
+      etapa,
+      bloque,
+      tipo,
+      force: forceFlag,
+    });
+
+    // ✅ Registro exitoso (puedes embellecer igual que el otro server si quieres)
+    return res.send(`
       <html lang="es">
       <head><meta charset="UTF-8"><title>Registro exitoso</title></head>
       <body style="font-family:sans-serif; text-align:center; margin-top:50px;">
-         <h1 style="font-size:70px; color:green;">✅ Registro guardado en base de datos</h1>
+         <h1 style="font-size:40px; color:green;">✅ Registro guardado en base de datos</h1>
+         <p><strong>ID:</strong> ${saved.id}</p>
+         <p><strong>Variedad:</strong> ${saved.variedad}</p>
+         <p><strong>Bloque:</strong> ${saved.bloque}</p>
+         <p><strong>Número de tallos:</strong> ${saved.numero_tallos}</p>
+         ${saved.tamano ? `<p><strong>Tamaño:</strong> ${saved.tamano}</p>` : ''}
       </body>
       </html>
     `);
   } catch (error) {
-    console.error(error);
-    res.status(500).send('Hubo un error al guardar los datos.');
+    console.error('[ERROR /submit]', error);
+
+    // Duplicado => mostrar tarjeta de advertencia con botón "Registrar de todas formas"
+    const esDoble =
+      error.code === 'DUPLICATE' ||
+      (typeof error.message === 'string' && error.message.toLowerCase().includes('ya fue registrado'));
+
+    if (esDoble) {
+      return res.status(400).send(`
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Código ya registrado</title>
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body {
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              background: #ffedd5; /* naranja suave */
+              font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+              color: #111827;
+              padding: 16px;
+            }
+            .card {
+              max-width: 680px;
+              width: 100%;
+              background: #ffffff;
+              border-radius: 24px;
+              box-shadow: 0 18px 45px rgba(15, 23, 42, 0.28);
+              padding: 32px 28px;
+              text-align: center;
+            }
+            .chip {
+              display: inline-flex;
+              align-items: center;
+              gap: 8px;
+              font-size: 0.95rem;
+              padding: 6px 14px;
+              border-radius: 999px;
+              background: rgba(248, 113, 113, 0.1);
+              color: #7f1d1d;
+              margin-bottom: 14px;
+            }
+            .chip-dot {
+              width: 8px;
+              height: 8px;
+              border-radius: 999px;
+              background: #f97316;
+            }
+            .big-emoji {
+              font-size: 3.2rem;
+              margin-bottom: 10px;
+            }
+            .title {
+              font-size: 2.2rem;
+              font-weight: 800;
+              margin-bottom: 8px;
+              color: #7c2d12;
+            }
+            .body {
+              font-size: 1.05rem;
+              line-height: 1.5;
+              margin-top: 8px;
+            }
+            .highlight {
+              font-weight: 700;
+            }
+            .btn {
+              display: inline-block;
+              margin-top: 24px;
+              padding: 16px 40px;
+              border-radius: 999px;
+              border: none;
+              font-size: 1.15rem;
+              font-weight: 700;
+              cursor: pointer;
+              text-decoration: none;
+              transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.1s ease;
+              box-shadow: 0 12px 28px rgba(22, 163, 74, 0.45);
+            }
+            .btn:active {
+              transform: scale(0.97);
+              box-shadow: none;
+            }
+            .btn-confirm {
+              background: #22c55e;
+              color: #032013;
+            }
+            .btn-confirm:hover {
+              background: #16a34a;
+            }
+            .small {
+              font-size: 0.85rem;
+              margin-top: 16px;
+              color: #4b5563;
+            }
+          </style>
+        </head>
+        <body>
+          <main class="card">
+            <div class="chip">
+              <span class="chip-dot"></span>
+              Posible doble registro
+            </div>
+            <div class="big-emoji">⚠️</div>
+            <h1 class="title">Este código ya fue registrado</h1>
+            <div class="body">
+              <p>
+                ID: <span class="highlight">${id || '(sin ID)'}</span><br/>
+                Variedad: <span class="highlight">${variedad}</span><br/>
+                Bloque: <span class="highlight">${bloque}</span><br/>
+                Tallos: <span class="highlight">${numero_tallos}</span>
+                ${tamano ? `<br/>Tamaño: <span class="highlight">${tamano}</span>` : ''}
+              </p>
+              <p style="margin-top:10px;">
+                Solo continúa si estás <span class="highlight">seguro</span> de que quieres registrar nuevamente.
+              </p>
+              <form method="POST" action="/submit">
+                <input type="hidden" name="id" value="${id || ''}" />
+                <input type="hidden" name="variedad" value="${variedad || ''}" />
+                <input type="hidden" name="tamano" value="${tamano || ''}" />
+                <input type="hidden" name="numero_tallos" value="${numero_tallos || ''}" />
+                <input type="hidden" name="etapa" value="${etapa || ''}" />
+                <input type="hidden" name="bloque" value="${bloque || ''}" />
+                <input type="hidden" name="tipo" value="${tipo || ''}" />
+                <input type="hidden" name="force" value="true" />
+                <button type="submit" class="btn btn-confirm">
+                  Registrar de todas formas
+                </button>
+              </form>
+              <p class="small">
+                Si no deseas duplicar el registro, simplemente cierra esta ventana.
+              </p>
+            </div>
+          </main>
+        </body>
+        </html>
+      `);
+    }
+
+    // Error general
+    res.status(500).send('Hubo un error al guardar los datos: ' + (error.message || 'Error desconocido'));
   }
 });
 
