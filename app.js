@@ -11,7 +11,7 @@ app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// 🔌 Conexión a PostgreSQL (Railway / misma BD del otro servicio)
+// 🔌 Conexión a PostgreSQL (Railway / misma BD del otro servicio)//////
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: false, // 🔴 Desactiva SSL completamente
