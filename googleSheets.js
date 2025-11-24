@@ -15,7 +15,7 @@ const sheets = google.sheets({ version: 'v4', auth });
 // ID de tu hoja de Google Sheets
 const SPREADSHEET_ID = '1QLMdDyv78yY52QRj7poCcAnj9Rh9jVL-Y5EUF81xnLE';
 
-// Generar un ID único (timestamp + parte aleatoria)
+// Generar un ID único (fallback si no viene id desde el form/QR)
 function generateUniqueId() {
   const timestamp = Date.now().toString(36);
   const randomPart = Math.random().toString(36).substring(2, 8);
@@ -24,19 +24,24 @@ function generateUniqueId() {
 
 // Función para agregar una nueva fila
 async function addRecord(data) {
-  const sanitizedBloque = data.bloque.replace(/[^0-9]/g, '');
-  const uniqueId = generateUniqueId();
+  const sanitizedBloque = String(data.bloque || '').replace(/[^0-9]/g, '');
+
+  // Si el servidor/envía un id, usamos ese. Si no, generamos uno.
+  const finalId = data.id || generateUniqueId();
+
+  // OJO: el servidor manda `tamano` (sin ñ)
+  const tamano = data.tamano || data.tamaño || ''; 
 
   // Depuración
   console.log('Datos antes de enviar a Google Sheets:', {
     fecha: data.fecha,
     bloque: sanitizedBloque,
     variedad: data.variedad,
-    tamaño: data.tamaño,
+    tamano,
     numero_tallos: data.numero_tallos,
     etapa: data.etapa,
     tipo: data.tipo,
-    uniqueId,
+    id: finalId,
   });
 
   try {
@@ -47,14 +52,14 @@ async function addRecord(data) {
       resource: {
         values: [
           [
-            data.fecha,
-            sanitizedBloque,
-            data.variedad,
-            data.tamaño,
-            data.numero_tallos,
-            data.etapa,
-            data.tipo,
-            uniqueId, // 👈 Última columna
+            data.fecha,                         // A: fecha
+            sanitizedBloque,                    // B: bloque
+            data.variedad || '',                // C: variedad
+            tamano,                             // D: tamaño
+            data.numero_tallos ?? '',           // E: numero_tallos
+            data.etapa || '',                   // F: etapa
+            data.tipo || '',                    // G: tipo
+            finalId,                            // H: id (form/QR o generado)
           ],
         ],
       },
