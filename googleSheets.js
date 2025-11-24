@@ -22,6 +22,41 @@ function generateUniqueId() {
   return `${timestamp}-${randomPart}`;
 }
 
+/**
+ * Verifica si ya existe un registro con el mismo ID en la hoja.
+ * Asumimos que el ID se guarda en la columna H (8ª columna),
+ * porque en addRecord lo estás enviando como último valor.
+ */
+async function existsSameRecord({ id }) {
+  if (!id) return false; // sin id no hacemos control
+
+  const idStr = String(id).trim();
+
+  try {
+    // Leemos solo la columna H (ID) de la hoja
+    const resp = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Ingreso Fin y Nac!H:H', // Columna H completa
+    });
+
+    const rows = resp.data.values || [];
+
+    // rows es un array de arrays: [[id1],[id2],...]
+    const found = rows.some(row => {
+      const cell = (row[0] || '').toString().trim();
+      return cell === idStr;
+    });
+
+    console.log('[existsSameRecord] ID', idStr, '=>', found ? 'DUPLICADO' : 'libre');
+    return found;
+  } catch (error) {
+    console.error('Error verificando duplicado en Google Sheets:', error);
+    // En caso de error, por seguridad dejamos continuar (false),
+    // o si quieres ser más estricto podrías devolver true.
+    return false;
+  }
+}
+
 // Función para agregar una nueva fila
 async function addRecord(data) {
   const sanitizedBloque = String(data.bloque || '').replace(/[^0-9]/g, '');
@@ -30,7 +65,7 @@ async function addRecord(data) {
   const finalId = data.id || generateUniqueId();
 
   // OJO: el servidor manda `tamano` (sin ñ)
-  const tamano = data.tamano || data.tamaño || ''; 
+  const tamano = data.tamano || data.tamaño || '';
 
   // Depuración
   console.log('Datos antes de enviar a Google Sheets:', {
@@ -59,7 +94,7 @@ async function addRecord(data) {
             data.numero_tallos ?? '',           // E: numero_tallos
             data.etapa || '',                   // F: etapa
             data.tipo || '',                    // G: tipo
-            finalId,                            // H: id (form/QR o generado)
+            finalId,                            // H: id
           ],
         ],
       },
@@ -71,4 +106,4 @@ async function addRecord(data) {
   }
 }
 
-module.exports = { addRecord };
+module.exports = { addRecord, existsSameRecord };

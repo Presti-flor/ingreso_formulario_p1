@@ -1,7 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 // Solo importamos addRecord desde googleSheets
-const { addRecord } = require('./googleSheets');
+const { addRecord, existsSameRecord } = require('./googleSheets');
 
 const app = express();
 const port = 3000;
@@ -58,40 +58,13 @@ function normalizeSizeForStorage(variedad, bloque, tamano, tipo) {
 }
 
 /** ============= Anti doble registro en memoria (dos seguidos) ============= */
-const recentSubmissions = new Map();
+
 
 // Construye una llave única con los campos importantes
-function buildDuplicateKey({ id, fecha, bloque, variedad, numero_tallos, tamano, etapa, tipo }) {
-  return [
-    id || '',
-    fecha || '',
-    String(bloque || ''),
-    (variedad || '').toLowerCase(),
-    String(numero_tallos || ''),
-    (tamano || '').toLowerCase(),
-    (etapa || '').toLowerCase(),
-    (tipo || '').toLowerCase(),
-  ].join('||');
-}
+
 
 // Simula existsSameRecord pero en memoria (para “no registrar dos veces seguidas lo mismo”)
-async function existsSameRecord(payload) {
-  const key = buildDuplicateKey(payload);
-  const now = Date.now();
-  const last = recentSubmissions.get(key);
 
-  // Ventana de protección: 5 minutos (puedes cambiar este tiempo)
-  const WINDOW_MS = 5 * 60 * 1000;
-
-  if (last && (now - last < WINDOW_MS)) {
-    // Se registró exactamente lo mismo hace poco => lo consideramos duplicado
-    return true;
-  }
-
-  // Primera vez (o ya pasó la ventana) => lo registramos y dejamos continuar
-  recentSubmissions.set(key, now);
-  return false;
-}
 
 /** =============== LÓGICA CENTRAL: PROCESAR + ANTIDUPLICADO =============== */
 async function processAndSaveForm({ id, variedad, tamano, numero_tallos, etapa, bloque, tipo, force }) {
@@ -127,17 +100,9 @@ async function processAndSaveForm({ id, variedad, tamano, numero_tallos, etapa, 
   }
 
   // Antiduplicado estilo /api/registrar
+  // Antiduplicado basado en Google Sheets: ID único en la hoja
   if (!force) {
-    const yaExiste = await existsSameRecord({
-      id,
-      fecha,
-      bloque: sanitizedBloque,
-      variedad,
-      numero_tallos: tallosNum,
-      tamano: sizeForStorage || '',
-      etapa: etapa || '',
-      tipo: tipoNorm,
-    });
+    const yaExiste = await existsSameRecord({ id });
 
     if (yaExiste) {
       const err = new Error('Este código ya fue registrado antes.');
