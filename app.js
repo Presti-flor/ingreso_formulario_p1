@@ -12,11 +12,14 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 // 🔌 Conexión a PostgreSQL (Railway / misma BD del otro servicio)//////
+const { Pool } = require('pg');
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: false, // 🔴 Desactiva SSL completamente
+  ssl: {
+    rejectUnauthorized: false, // con Railway casi siempre lo dejamos así
+  },
 });
-
 /*
   Asegúrate que en PostgreSQL tengas algo así (adaptado a tu diseño de ID NO autoincremental):
 
