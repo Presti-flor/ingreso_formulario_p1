@@ -1,7 +1,8 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 // AHORA IMPORTA existsSameRecord TAMBIÉN
-const { addRecord, existsSameRecord } = require('./googleSheets');
+const { addRecord } = require('./googleSheets');
+// existsSameRecord lo vamos a definir nosotros aquí mismo
 
 const app = express();
 const port = 3000;
