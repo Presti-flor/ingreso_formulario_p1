@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-// Solo importamos addRecord desde googleSheets
+const { Pool } = require('pg');
+// Solo importamos addRecord y existsSameRecord desde googleSheets
 const { addRecord, existsSameRecord } = require('./googleSheets');
 
 const app = express();
@@ -9,6 +10,57 @@ const port = 3000;
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+
+// 🔌 Conexión a PostgreSQL (Railway / misma BD del otro servicio)
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
+
+/*
+  Asegúrate que en PostgreSQL tengas algo así (misma tabla que el otro servicio):
+
+  CREATE TABLE IF NOT EXISTS registrosp1 (
+    id              SERIAL PRIMARY KEY,
+    id_qr           TEXT NOT NULL,
+    fecha           DATE NOT NULL,
+    bloque          INTEGER NOT NULL,
+    variedad        TEXT NOT NULL,
+    tallos          INTEGER NOT NULL,
+    tamaño          TEXT,
+    etapa           TEXT,
+    tipo            TEXT,
+    creado_en       TIMESTAMPTZ DEFAULT NOW()
+  );
+*/
+
+// 👉 Función para guardar formulario en PostgreSQL
+async function saveToPostgresForm({ id, fecha, bloque, variedad, tallos, tamaño, etapa, tipo }) {
+  const query = `
+    INSERT INTO registrosp1
+      (id,  fecha, bloque, variedad, tallos, etapa, tipo, tamaño)
+    VALUES
+      ($1,     $2,    $3,     $4,      $5,     $6,    $7,   $8)
+    RETURNING *;
+  `;
+
+  const values = [
+    id,
+    fecha,
+    parseInt(bloque, 10),
+    variedad,
+    tallos,
+    etapa || null,
+    tipo || null,
+    tamaño || null,
+  ];
+
+  console.log('🧪 INSERT Form → Postgres', { query, values });
+  const result = await pool.query(query, values);
+  return result.rows[0] || null;
+}
 
 // ====== IP Whitelist Setup ======
 app.set('trust proxy', true);
@@ -48,7 +100,8 @@ function isSizeAllowed(variedad, bloque, tamano) {
   return allowedSizes(variedad, bloque).includes(t);
 }
 
-// Si el tamaño es "na" => guardar en blanco (no enviar campo). Si es válido, devolver en minúsculas.
+// Si el tamaño es "na" => guardar en blanco. Si es válido, devolver en minúsculas.
+// tipo = nacional => jamás guarda tamaño.
 function normalizeSizeForStorage(variedad, bloque, tamano, tipo) {
   if ((tipo || '').toLowerCase() === 'nacional') return null; // nacional jamás guarda tamaño
   const t = (tamano || '').toLowerCase().trim();
@@ -56,15 +109,6 @@ function normalizeSizeForStorage(variedad, bloque, tamano, tipo) {
   if (t === 'na') return null; // NA => celda vacía
   return t; // 'largo' | 'corto' | 'ruso'
 }
-
-/** ============= Anti doble registro en memoria (dos seguidos) ============= */
-
-
-// Construye una llave única con los campos importantes
-
-
-// Simula existsSameRecord pero en memoria (para “no registrar dos veces seguidas lo mismo”)
-
 
 /** =============== LÓGICA CENTRAL: PROCESAR + ANTIDUPLICADO =============== */
 async function processAndSaveForm({ id, variedad, tamano, numero_tallos, etapa, bloque, tipo, force }) {
@@ -82,9 +126,10 @@ async function processAndSaveForm({ id, variedad, tamano, numero_tallos, etapa, 
   const fecha = new Date().toISOString().split('T')[0];
   const tipoNorm = (tipo || '').toLowerCase();
 
-  // Normalizar tamaño para guardar
+  // Normalizar tamaño para almacenar (en BD: "tamaño")
   const sizeForStorage = normalizeSizeForStorage(variedad, sanitizedBloque, tamano, tipoNorm);
 
+  // Objeto para Google Sheets (respeta nombres originales)
   const dataToSave = {
     id,
     fecha,
@@ -99,7 +144,6 @@ async function processAndSaveForm({ id, variedad, tamano, numero_tallos, etapa, 
     dataToSave.tamano = sizeForStorage;
   }
 
-  // Antiduplicado estilo /api/registrar
   // Antiduplicado basado en Google Sheets: ID único en la hoja
   if (!force) {
     const yaExiste = await existsSameRecord({ id });
@@ -111,15 +155,28 @@ async function processAndSaveForm({ id, variedad, tamano, numero_tallos, etapa, 
     }
   }
 
+  // 🟢 1) Guardar en PostgreSQL (misma tabla que el otro sistema)
+  await saveToPostgresForm({
+    id,
+    fecha,
+    bloque: sanitizedBloque,
+    variedad,
+    tallos: tallosNum,
+    tamaño: sizeForStorage,   // aquí usamos "tamaño" para la columna de Postgres
+    etapa: etapa || '',
+    tipo: tipoNorm,
+  });
+
+  // 🟢 2) Guardar en Google Sheets (flujo original)
   await addRecord(dataToSave);
 
-  console.log('✅ [FORM] Registrado correctamente:', {
+  console.log('✅ [FORM] Registrado correctamente (Postgres + Sheets):', {
     id,
     fecha,
     bloque: sanitizedBloque,
     variedad,
     numero_tallos: tallosNum,
-    tamano: sizeForStorage,
+    tamaño: sizeForStorage,
     etapa,
     tipo: tipoNorm,
   });
@@ -527,7 +584,7 @@ app.post('/submit', ipWhitelist, async (req, res) => {
               display: flex;
               align-items: center;
               justify-content: center;
-              background: #ffedd5; /* naranja suave */
+              background: #ffedd5;
               font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
               color: #111827;
               padding: 16px;
@@ -576,35 +633,6 @@ app.post('/submit', ipWhitelist, async (req, res) => {
             .highlight {
               font-weight: 700;
             }
-            .btn {
-              display: inline-block;
-              margin-top: 24px;
-              padding: 16px 40px;
-              border-radius: 999px;
-              border: none;
-              font-size: 1.15rem;
-              font-weight: 700;
-              cursor: pointer;
-              text-decoration: none;
-              transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.1s ease;
-              box-shadow: 0 12px 28px rgba(22, 163, 74, 0.45);
-            }
-            .btn:active {
-              transform: scale(0.97);
-              box-shadow: none;
-            }
-            .btn-confirm {
-              background: #22c55e;
-              color: #032013;
-            }
-            .btn-confirm:hover {
-              background: #16a34a;
-            }
-            .small {
-              font-size: 0.85rem;
-              margin-top: 16px;
-              color: #4b5563;
-            }
           </style>
         </head>
         <body>
@@ -614,34 +642,9 @@ app.post('/submit', ipWhitelist, async (req, res) => {
               Posible doble registro
             </div>
             <div class="big-emoji">⚠️</div>
-            <h1 class="title">Este código ya fue registrado</h1>
+            <h1 class="title">Este código ya fue escaneado</h1>
             <div class="body">
-              <p>
-                ID: <span class="highlight">${id || '(sin ID)'}</span><br/>
-                Variedad: <span class="highlight">${variedad}</span><br/>
-                Bloque: <span class="highlight">${bloque}</span><br/>
-                Tallos: <span class="highlight">${numero_tallos}</span>
-                ${tamano ? `<br/>Tamaño: <span class="highlight">${tamano}</span>` : ''}
-              </p>
-              <p style="margin-top:10px;">
-                Solo continúa si estás <span class="highlight">seguro</span> de que quieres registrar nuevamente.
-              </p>
-              <form method="POST" action="/submit">
-                <input type="hidden" name="id" value="${id || ''}" />
-                <input type="hidden" name="variedad" value="${variedad || ''}" />
-                <input type="hidden" name="tamano" value="${tamano || ''}" />
-                <input type="hidden" name="numero_tallos" value="${numero_tallos || ''}" />
-                <input type="hidden" name="etapa" value="${etapa || ''}" />
-                <input type="hidden" name="bloque" value="${bloque || ''}" />
-                <input type="hidden" name="tipo" value="${tipo || ''}" />
-                <input type="hidden" name="force" value="true" />
-                <button type="submit" class="btn btn-confirm">
-                  Registrar de todas formas
-                </button>
-              </form>
-              <p class="small">
-                Si no deseas duplicar el registro, simplemente cierra esta ventana.
-              </p>
+              <p>Este ID ya se encuentra registrado. Verifica antes de volver a enviar.</p>
             </div>
           </main>
         </body>
@@ -649,12 +652,10 @@ app.post('/submit', ipWhitelist, async (req, res) => {
       `);
     }
 
-    // Error general
-    res.status(500).send('Hubo un error al guardar los datos: ' + (error.message || 'Error desconocido'));
+    return res.status(500).send('Error interno al procesar el formulario.');
   }
 });
 
-// ==================== INICIO DEL SERVIDOR ====================
 app.listen(port, () => {
   console.log(`Servidor escuchando en http://localhost:${port}`);
 });
