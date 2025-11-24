@@ -5,7 +5,7 @@ const { Pool } = require('pg');
 const { addRecord, existsSameRecord } = require('./googleSheets');
 
 const app = express();
-const port = 8080;
+const port = 5432;
 
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
