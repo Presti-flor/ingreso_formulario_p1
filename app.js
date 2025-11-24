@@ -102,7 +102,7 @@ function isSizeAllowed(variedad, bloque, tamano) {
 
 // Si el tamaño es "na" => guardar en blanco. Si es válido, devolver en minúsculas.
 // tipo = nacional => jamás guarda tamaño.
-function normalizeSizeForStorage(variedad, bloque, tamano, tipo) {
+function normalizeSizeForStorage(variedad, bloque, tamaño, tipo) {
   if ((tipo || '').toLowerCase() === 'nacional') return null; // nacional jamás guarda tamaño
   const t = (tamano || '').toLowerCase().trim();
   if (!isSizeAllowed(variedad, bloque, t)) return null; // inválidos => no guardar
@@ -111,9 +111,9 @@ function normalizeSizeForStorage(variedad, bloque, tamano, tipo) {
 }
 
 /** =============== LÓGICA CENTRAL: PROCESAR + ANTIDUPLICADO =============== */
-async function processAndSaveForm({ id, variedad, tamano, numero_tallos, etapa, bloque, tipo, force }) {
+async function processAndSaveForm({ id, variedad, tamaño, tallos, etapa, bloque, tipo, force }) {
   if (!id) throw new Error('Falta el parámetro id');
-  if (!variedad || !bloque || !numero_tallos) {
+  if (!variedad || !bloque || !tallos) {
     throw new Error('Faltan datos obligatorios: variedad, bloque, numero_tallos');
   }
 
@@ -127,7 +127,7 @@ async function processAndSaveForm({ id, variedad, tamano, numero_tallos, etapa, 
   const tipoNorm = (tipo || '').toLowerCase();
 
   // Normalizar tamaño para almacenar (en BD: "tamaño")
-  const sizeForStorage = normalizeSizeForStorage(variedad, sanitizedBloque, tamano, tipoNorm);
+  const sizeForStorage = normalizeSizeForStorage(variedad, sanitizedBloque, tamaño, tipoNorm);
 
   // Objeto para Google Sheets (respeta nombres originales)
   const dataToSave = {
@@ -135,7 +135,7 @@ async function processAndSaveForm({ id, variedad, tamano, numero_tallos, etapa, 
     fecha,
     bloque: sanitizedBloque,
     variedad,
-    numero_tallos: tallosNum,
+    tallos: tallosNum,
     etapa: etapa || '',
     tipo: tipoNorm,
   };
@@ -175,7 +175,7 @@ async function processAndSaveForm({ id, variedad, tamano, numero_tallos, etapa, 
     fecha,
     bloque: sanitizedBloque,
     variedad,
-    numero_tallos: tallosNum,
+    tallos: tallosNum,
     tamaño: sizeForStorage,
     etapa,
     tipo: tipoNorm,
@@ -531,7 +531,7 @@ app.get('/', (req, res) => {
 
 // ==================== RUTA POST ============================
 app.post('/submit', ipWhitelist, async (req, res) => {
-  const { id, variedad, tamano, numero_tallos, etapa, bloque, tipo, force } = req.body;
+  const { id, variedad, tamano, tallos, etapa, bloque, tipo, force } = req.body;
   const forceFlag = force === 'true' || force === '1';
 
   console.log('[SUBMIT]', { fromIp: getClientIp(req), id, variedad, tamano, numero_tallos, etapa, bloque, tipo, forceFlag });
@@ -541,7 +541,7 @@ app.post('/submit', ipWhitelist, async (req, res) => {
       id,
       variedad,
       tamano,
-      numero_tallos,
+      tallos,
       etapa,
       bloque,
       tipo,
