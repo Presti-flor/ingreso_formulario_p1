@@ -5,7 +5,7 @@ const { Pool } = require('pg');
 const { addRecord, existsSameRecord } = require('./googleSheets');
 
 const app = express();
-const port = 5432;
+const port = 8080;
 
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -14,9 +14,7 @@ app.use(bodyParser.json());
 // 🔌 Conexión a PostgreSQL (Railway / misma BD del otro servicio)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: false, // 🔴 Desactiva SSL completamente
 });
 
 /*
