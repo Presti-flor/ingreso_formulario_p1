@@ -65,15 +65,15 @@ async function addRecord(data) {
   const finalId = data.id || generateUniqueId();
 
   // OJO: el servidor manda `tamano` (sin ñ)
-  const tamano = data.tamano || data.tamaño || '';
+  const tamano = data.tamaño || data.tamaño || '';
 
   // Depuración
   console.log('Datos antes de enviar a Google Sheets:', {
     fecha: data.fecha,
     bloque: sanitizedBloque,
     variedad: data.variedad,
-    tamano,
-    numero_tallos: data.numero_tallos,
+    tamaño: data.tamaño,
+    tallos: data.tallos,
     etapa: data.etapa,
     tipo: data.tipo,
     id: finalId,
@@ -90,8 +90,8 @@ async function addRecord(data) {
             data.fecha,                         // A: fecha
             sanitizedBloque,                    // B: bloque
             data.variedad || '',                // C: variedad
-            tamano,                             // D: tamaño
-            data.numero_tallos ?? '',           // E: numero_tallos
+            data.tamaño,                             // D: tamaño
+            tallos ?? '',           // E: numero_tallos
             data.etapa || '',                   // F: etapa
             data.tipo || '',                    // G: tipo
             finalId,                            // H: id
