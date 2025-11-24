@@ -1,8 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-// AHORA IMPORTA existsSameRecord TAMBIÉN
+// Solo importamos addRecord desde googleSheets
 const { addRecord } = require('./googleSheets');
-// existsSameRecord lo vamos a definir nosotros aquí mismo
 
 const app = express();
 const port = 3000;
@@ -56,6 +55,42 @@ function normalizeSizeForStorage(variedad, bloque, tamano, tipo) {
   if (!isSizeAllowed(variedad, bloque, t)) return null; // inválidos => no guardar
   if (t === 'na') return null; // NA => celda vacía
   return t; // 'largo' | 'corto' | 'ruso'
+}
+
+/** ============= Anti doble registro en memoria (dos seguidos) ============= */
+const recentSubmissions = new Map();
+
+// Construye una llave única con los campos importantes
+function buildDuplicateKey({ id, fecha, bloque, variedad, numero_tallos, tamano, etapa, tipo }) {
+  return [
+    id || '',
+    fecha || '',
+    String(bloque || ''),
+    (variedad || '').toLowerCase(),
+    String(numero_tallos || ''),
+    (tamano || '').toLowerCase(),
+    (etapa || '').toLowerCase(),
+    (tipo || '').toLowerCase(),
+  ].join('||');
+}
+
+// Simula existsSameRecord pero en memoria (para “no registrar dos veces seguidas lo mismo”)
+async function existsSameRecord(payload) {
+  const key = buildDuplicateKey(payload);
+  const now = Date.now();
+  const last = recentSubmissions.get(key);
+
+  // Ventana de protección: 5 minutos (puedes cambiar este tiempo)
+  const WINDOW_MS = 5 * 60 * 1000;
+
+  if (last && (now - last < WINDOW_MS)) {
+    // Se registró exactamente lo mismo hace poco => lo consideramos duplicado
+    return true;
+  }
+
+  // Primera vez (o ya pasó la ventana) => lo registramos y dejamos continuar
+  recentSubmissions.set(key, now);
+  return false;
 }
 
 /** =============== LÓGICA CENTRAL: PROCESAR + ANTIDUPLICADO =============== */
@@ -132,7 +167,7 @@ app.get('/', (req, res) => {
   const bloque = req.query.bloque || '3';
   const etapa = req.query.etapa || '';
   const tipo = req.query.tipo || '';
-  const id = req.query.id || ''; // ⬅️ ID VIENE POR QUERY (igual que en el QR)
+  const id = req.query.id || ''; // ⬅️ ID VIENE POR QUERY
 
   // ======= FORMULARIO TIPO NACIONAL (tema naranja) =============
   if (tipo === 'nacional') {
@@ -491,7 +526,7 @@ app.post('/submit', ipWhitelist, async (req, res) => {
       force: forceFlag,
     });
 
-    // ✅ Registro exitoso (puedes embellecer igual que el otro server si quieres)
+    // ✅ Registro exitoso
     return res.send(`
       <html lang="es">
       <head><meta charset="UTF-8"><title>Registro exitoso</title></head>
@@ -508,7 +543,6 @@ app.post('/submit', ipWhitelist, async (req, res) => {
   } catch (error) {
     console.error('[ERROR /submit]', error);
 
-    // Duplicado => mostrar tarjeta de advertencia con botón "Registrar de todas formas"
     const esDoble =
       error.code === 'DUPLICATE' ||
       (typeof error.message === 'string' && error.message.toLowerCase().includes('ya fue registrado'));
