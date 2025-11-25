@@ -360,12 +360,11 @@ app.get('/', (req, res) => {
       { value: 'pink ohora', label: 'Pink Ohora' },
     ];
     seleccionVariedad = 'freedom';
-  } else if (bloque === '7') {
+  } else if (bloque === '1A') {
     variedades = [
-      { value: 'candlelight', label: 'Candlelight' },
-      { value: 'deep purple', label: 'Deep Purple' },
+      { value: 'freedom', label: 'Freedom' },
     ];
-    seleccionVariedad = 'candlelight';
+    seleccionVariedad = 'freedom';
   } else if (bloque === '8') {
     variedades = [
       { value: 'star platinum', label: 'Star Platinum' },
