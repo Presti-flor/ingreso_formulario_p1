@@ -19,13 +19,14 @@ const pool = new Pool({
     rejectUnauthorized: false, // con Railway casi siempre lo dejamos así
   },
 });
+
 /*
   Asegúrate que en PostgreSQL tengas algo así (adaptado a tu diseño de ID NO autoincremental):
 
   CREATE TABLE IF NOT EXISTS registrosp1 (
     id        TEXT NOT NULL,
     fecha     DATE NOT NULL,
-    bloque    INTEGER NOT NULL,
+    bloque    TEXT NOT NULL,   -- 👈 ahora TEXT para permitir valores como '1A'
     variedad  TEXT NOT NULL,
     tallos    INTEGER NOT NULL,
     tamano    TEXT,
@@ -45,14 +46,14 @@ async function saveToPostgresForm({ id, fecha, bloque, variedad, tallos, tamano,
   `;
 
   const values = [
-    id,                      // id (texto, tú lo defines)
-    fecha,                   // fecha 'YYYY-MM-DD'
-    parseInt(bloque, 10),    // bloque
-    variedad,                // variedad
-    tallos,                  // tallos (número)
-    etapa || null,           // etapa
-    tipo || null,            // tipo
-    tamano || null,          // tamano
+    id,                       // id (texto, tú lo defines)
+    fecha,                    // fecha 'YYYY-MM-DD'
+    String(bloque),           // bloque como TEXTO (puede ser '1A')
+    tallos,                   // tallos (número)
+    variedad,                 // variedad
+    etapa || null,            // etapa
+    tipo || null,             // tipo
+    tamano || null,           // tamano
   ];
 
   console.log('🧪 INSERT Form → Postgres', { query, values });
@@ -89,7 +90,7 @@ function allowedSizes(variedad, bloque) {
   const v = (variedad || '').toLowerCase().trim();
   const b = String(bloque || '').trim();
   if (v === 'freedom') return ['largo', 'corto', 'ruso'];
-  if (v === 'vendela' && b === '1') return ['na']; // NA se muestra pero se guarda vacío
+  if (v === 'vendela' && b === '1') return ['ruso', 'na']; // NA se muestra pero se guarda vacío
   return [];
 }
 
@@ -108,6 +109,127 @@ function normalizeSizeForStorage(variedad, bloque, tamano, tipo) {
   return t; // 'largo' | 'corto' | 'ruso'
 }
 
+/** =============== Helper: variedades de FIN DE CORTE (reusado) =============== */
+function getFinCorteConfig(bloque) {
+  const b = String(bloque);
+  /** 
+   * Aquí mantenemos exactamente las variedades de FIN DE CORTE,
+   * y las usamos también para el formulario NACIONAL.
+   */
+  if (b === '3') {
+    return {
+      variedades: [
+        { value: 'freedom', label: 'Freedom' },
+      ],
+      seleccionVariedad: 'freedom',
+    };
+  } else if (b === '4') {
+    return {
+      variedades: [
+        { value: 'freedom', label: 'Freedom' },
+      ],
+      seleccionVariedad: 'freedom',
+    };
+  } else if (b === '5') {
+    return {
+      variedades: [
+        { value: 'freedom', label: 'Freedom' },
+        { value: 'moody blue', label: 'Moody Blue' },
+        { value: 'queen berry', label: 'Queen Berry' },
+        { value: 'pink mondial', label: 'Pink Mondial' },
+        { value: 'white ohora', label: 'White Ohora' },
+        { value: 'pink ohora', label: 'Pink Ohora' },
+      ],
+      seleccionVariedad: 'freedom',
+    };
+  } else if (b === '1A') {
+    return {
+      variedades: [
+        { value: 'freedom', label: 'Freedom' },
+      ],
+      seleccionVariedad: 'freedom',
+    };
+  } else if (b === '6') {
+    return {
+      variedades: [
+        { value: 'freedom', label: 'Freedom' },
+      ],
+      seleccionVariedad: 'freedom',
+    };
+  } else if (b === '8') {
+    return {
+      variedades: [
+        { value: 'vendela', label: 'Vendela' },
+        { value: 'quick sand', label: 'Quick Sand' },
+        { value: 'tifany', label: 'Tifany' },
+        { value: 'yellow bikini', label: 'Yellow Bikini' },
+      ],
+      seleccionVariedad: 'vendela',
+    };
+  } else if (b === '1') {
+    return {
+      variedades: [
+        { value: 'freedom', label: 'Freedom' },
+      ],
+      seleccionVariedad: 'freedom',
+    };
+  } else if (b === '2') {
+    return {
+      variedades: [
+        { value: 'freedom', label: 'Freedom' },
+      ],
+      seleccionVariedad: 'freedom',
+    };
+  } else if (b === '7') {
+    return {
+      variedades: [
+        { value: 'mondial', label: 'Mondial' },
+        { value: 'moody blue', label: 'Moody Blue' },
+        { value: 'queen berry', label: 'Queen Berry' },
+        { value: 'momentum', label: 'Momentum' },
+      ],
+      seleccionVariedad: 'mondial',
+    };
+  } else if (b === '12') {
+    return {
+      variedades: [
+        { value: 'freedom', label: 'Freedom' },
+      ],
+      seleccionVariedad: 'freedom',
+    };
+  } else if (b === '9') {
+    return {
+      variedades: [
+        { value: 'vendela', label: 'Vendela' },
+        { value: 'hummer', label: 'Hummer' },
+        { value: 'coral reff', label: 'Coral Reff' },
+        { value: 'pink floyd', label: 'Pink Floyd' },
+      ],
+      seleccionVariedad: 'vendela',
+    };
+  } else if (b === '10') {
+    return {
+      variedades: [
+        { value: 'mondial', label: 'Mondial' },
+        { value: 'hummer', label: 'Hummer' },
+        { value: 'hilux', label: 'Hilux' },
+        { value: 'blessing', label: 'Blessing' },
+      ],
+      seleccionVariedad: 'mondial',
+    };
+  } else if (b === '11') {
+    return {
+      variedades: [
+        { value: 'vendela', label: 'Vendela' },
+      ],
+      seleccionVariedad: 'vendela',
+    };
+  }
+
+  // Por defecto, sin variedades
+  return { variedades: [], seleccionVariedad: '' };
+}
+
 /** =============== LÓGICA CENTRAL: PROCESAR + ANTIDUPLICADO =============== */
 async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque, tipo, force }) {
   if (!id) throw new Error('Falta el parámetro id');
@@ -120,18 +242,23 @@ async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque,
     throw new Error('El campo tallos debe ser un número positivo');
   }
 
-  const sanitizedBloque = (bloque || '').replace(/[^0-9]/g, '');
+  // 👇 ahora NO quitamos la letra, guardamos el bloque tal cual (ej: '1A')
+  const bloqueNorm = (bloque || '').toString().trim();
+  if (!bloqueNorm) {
+    throw new Error('Bloque inválido');
+  }
+
   const fecha = new Date().toISOString().split('T')[0];
   const tipoNorm = (tipo || '').toLowerCase();
 
   // Normalizar tamano para almacenar (en BD: "tamano")
-  const sizeForStorage = normalizeSizeForStorage(variedad, sanitizedBloque, tamano, tipoNorm);
+  const sizeForStorage = normalizeSizeForStorage(variedad, bloqueNorm, tamano, tipoNorm);
 
   // Objeto para Google Sheets (coincide con googleSheets.js)
   const dataToSave = {
     id,
     fecha,
-    bloque: sanitizedBloque,
+    bloque: bloqueNorm,      // 👈 bloque con letra
     variedad,
     tallos: tallosNum,
     etapa: etapa || '',
@@ -142,12 +269,11 @@ async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque,
     dataToSave.tamano = sizeForStorage;
   }
 
-  // Antiduplicado basado en Google Sheets: ID único en la hoja
   // Antiduplicado basado en Google Sheets: ID + bloque únicos en la hoja
   if (!force) {
     const yaExiste = await existsSameRecord({
       id,
-      bloque: sanitizedBloque,   // usamos el bloque ya limpiado
+      bloque: bloqueNorm,   // usamos el bloque NORMALIZADO (con letra si la tiene)
     });
 
     if (yaExiste) {
@@ -161,7 +287,7 @@ async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque,
   await saveToPostgresForm({
     id,
     fecha,
-    bloque: sanitizedBloque,
+    bloque: bloqueNorm,
     variedad,
     tallos: tallosNum,
     tamano: sizeForStorage,   // aquí usamos "tamano" para la columna de Postgres
@@ -175,7 +301,7 @@ async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque,
   console.log('✅ [FORM] Registrado correctamente (Postgres + Sheets):', {
     id,
     fecha,
-    bloque: sanitizedBloque,
+    bloque: bloqueNorm,
     variedad,
     tallos: tallosNum,
     tamano: sizeForStorage,
@@ -195,71 +321,8 @@ app.get('/', (req, res) => {
 
   // ======= FORMULARIO TIPO NACIONAL (tema naranja) =============
   if (tipo === 'nacional') {
-    let variedades = [];
-    if (bloque === '3') {
-      variedades = [
-        { value: 'momentum', label: 'Momentum' },
-        { value: 'quick sand', label: 'Quick Sand' },
-        { value: 'pink floyd', label: 'Pink Floyd' },
-        { value: 'freedom', label: 'Freedom' },
-      ];
-    } else if (bloque === '4') {
-      variedades = [
-        { value: 'freedom', label: 'Freedom' },
-        { value: 'hilux', label: 'Hilux' },
-      ];
-    } else if (bloque === '5' || bloque === '6') {
-      variedades = [{ value: 'freedom', label: 'Freedom' }];
-    } else if (bloque === '7') {
-      variedades = [
-        { value: 'candlelight', label: 'Candlelight' },
-        { value: 'deep purple', label: 'Deep Purple' },
-      ];
-    } else if (bloque === '8') {
-      variedades = [
-        { value: 'star platinum', label: 'Star Platinum' },
-        { value: 'candlelight', label: 'Candlelight' },
-        { value: 'sommersand', label: 'Sommersand' },
-        { value: 'freedom', label: 'Freedom' },
-      ];
-    } else if (bloque === '1') {
-      variedades = [
-        { value: 'vendela', label: 'Vendela' },
-        { value: 'pink floyd', label: 'Pink Floyd' },
-      ];
-    } else if (bloque === '2') {
-      variedades = [
-        { value: 'coral reff', label: 'Coral Reff' },
-        { value: 'hummer', label: 'Hummer' },
-      ];
-    } else if (bloque === '9') {
-      variedades = [
-        { value: 'freedom', label: 'Freedom' },
-      ];
-    } else if (bloque === '10') {
-      variedades = [
-        { value: 'shimmer', label: 'Shimmer'},
-        { value: 'freedom', label: 'Freedom'},
-      ];
-    } else if (bloque === '11') {
-      variedades = [
-        { value: 'pink mondial', label: 'Pink Mondial'},
-        { value: 'whithe ohora', label: 'Whithe Ohora'},
-        { value: 'pink ohora', label: 'Pink Ohora'},
-        { value: 'mondial', label: 'Mondial'},
-      ];
-    } else if (bloque === '12') {
-      variedades = [
-        { value: 'mondial', label: 'Mondial'},
-        { value: 'blessing', label: 'Blessing'},
-        { value: 'pink amareto', label: 'Pink Amareto'},
-        { value: 'sommersand', label: 'Sommersand'},
-      ];
-    } else if (bloque === '13') {
-      variedades = [
-        { value: 'freedom', label: 'Freedom'},
-      ];
-    }
+    // 👇 Ahora nacional usa las MISMAS variedades que fin de corte
+    const { variedades } = getFinCorteConfig(bloque);
 
     return res.send(`
       <html lang="es">
@@ -342,92 +405,7 @@ app.get('/', (req, res) => {
   }
 
   // ======= FORMULARIO FIN DE CORTE =============
-  let variedades = [];
-  let seleccionVariedad = 'freedom';
-
-  if (bloque === '3') {
-    variedades = [
-      { value: 'freedom', label: 'Freedom' },
-    ];
-  } else if (bloque === '4') {
-    variedades = [
-      { value: 'freedom', label: 'Freedom' },
-    ];
-    seleccionVariedad = 'freedom';
-  } else if (bloque === '5') {
-    variedades = [
-      { value: 'freedom', label: 'Freedom' },
-      { value: 'moody blue', label: 'Moody Blue' },
-      { value: 'queen berry', label: 'Queen Berry' },
-      { value: 'pink mondial', label: 'Pink Mondial' },
-      { value: 'white ohora', label: 'White Ohora' },
-      { value: 'pink ohora', label: 'Pink Ohora' },
-    ];
-    seleccionVariedad = 'freedom';
-  } else if (bloque === '1A') {
-    variedades = [
-      { value: 'freedom', label: 'Freedom' },
-    ];
-    seleccionVariedad = 'freedom';
-  } else if (bloque === '6') {
-    variedades = [
-      { value: 'freedom', label: 'Freedom' },
-    ];
-    seleccionVariedad = 'freedom';
-  }else if (bloque === '8') {
-    variedades = [
-      { value: 'vendela', label: 'Vendela' },
-      { value: 'quick sand', label: 'Quick Sand' },
-      { value: 'tifany', label: 'Tifany' },
-      { value: 'yellow bikini', label: 'Yellow Bikini' },
-    ];
-    seleccionVariedad = 'vendela';
-  } else if (bloque === '1') {
-    variedades = [
-      { value: 'freedom', label: 'Freedom' },
-    ];
-    seleccionVariedad = 'freedom';
-  } else if (bloque === '2') {
-    variedades = [
-      { value: 'freedom', label: 'Freedom' },
-    ];
-    seleccionVariedad = 'freedom';
-  } else if (bloque === '7') {
-    variedades = [
-      { value: 'mondial', label: 'Mondial' },
-      { value: 'moody blue', label: 'Moody Blue' },
-      { value: 'queen berry', label: 'Queen Berry' },
-      { value: 'momentum', label: 'Momentum' },
-    
-    ];
-    seleccionVariedad = 'mondial';
-  } else if (bloque === '12') {
-    variedades = [
-      { value: 'freedom', label: 'Freedom'},
-    ];
-    seleccionVariedad = 'freedom';
-  } else if (bloque === '9') {
-    variedades = [
-      { value: 'vendela', label: 'Vendela'},
-      { value: 'hummer', label: 'Hummer'},
-      { value: 'coral reff', label: 'Coral Reff'},
-      { value: 'pink floyd', label: 'Pink Floyd'},
-    ];
-    seleccionVariedad = 'vendela';
-  } else if (bloque === '10') {
-    variedades = [
-      { value: 'mondial', label: 'Mondial'},
-      { value: 'hummer', label: 'Hummer'},
-      { value: 'hilux', label: 'Hilux'},
-      { value: 'blessing', label: 'Blessing'},
-    ];
-    seleccionVariedad = 'mondial';
-  } else if (bloque === '11') {
-    variedades = [
-      { value: 'vendela', label: 'Vendela'},
-    ];
-    seleccionVariedad = 'vendela';
-  }
+  const { variedades, seleccionVariedad } = getFinCorteConfig(bloque);
 
   res.send(`
     <html lang="es">
