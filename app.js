@@ -275,15 +275,13 @@ async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque,
     dataToSave.tamano = sizeForStorage;
   }
 
-  // Antiduplicado basado en Google Sheets: ID + bloque únicos en la hoja
-  // Antiduplicado basado en Google Sheets: ID + bloque + fecha
   // Antiduplicado basado en Google Sheets: ID + bloque + fecha + tipo
   if (!force) {
     const yaExiste = await existsSameRecord({
       id,
-      bloque: bloqueNorm,   // código de bloque tal cual (con punto si tiene)
+      bloque: bloqueNorm,
       fecha,
-      tipo: tipoNorm,       // 👈 ahora también diferenciamos por tipo
+      tipo: tipoNorm,
     });
 
     if (yaExiste) {
@@ -292,6 +290,7 @@ async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque,
       throw err;
     }
   }
+
   // 🟢 1) Guardar en PostgreSQL (misma tabla que el otro sistema)
   await saveToPostgresForm({
     id,
@@ -341,72 +340,138 @@ app.get('/', (req, res) => {
         <title>Formulario Tallos Nacional</title>
         <link rel="stylesheet" type="text/css" href="/style.css"/>
         <style>
+          * {
+            box-sizing: border-box;
+          }
           body.theme-nacional-orange {
-            background: #fdfdfd;
-            color: #d85b00;
-            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #ffffff;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+          }
+          .form-wrapper {
+            width: 100%;
+            max-width: 520px;
+            padding: 16px;
           }
           .form-container {
             background: #ffffff;
             border: 2px solid #ffb366;
-            border-radius: 15px;
-            width: 90%;
-            max-width: 500px;
-            margin: 40px auto;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.1);
-            padding: 2em;
+            border-radius: 20px;
+            width: 100%;
+            box-shadow: 0 14px 40px rgba(0,0,0,0.12);
+            padding: 28px 24px 26px;
           }
-          h1.title, h2.subtitle {
+          h1.title {
+            font-size: 1.8rem;
+            margin-bottom: 4px;
             color: #d85b00;
+            text-align: center;
+            letter-spacing: 0.04em;
+          }
+          h2.subtitle {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 12px;
+            color: #b64a00;
+            text-align: center;
+            font-weight: 500;
+          }
+          p.info-id {
+            font-size: 0.95rem;
+            margin-bottom: 18px;
+            text-align: center;
+            color: #4b5563;
+          }
+          p.info-id strong {
+            color: #b64a00;
           }
           label {
-            font-weight: bold;
+            font-weight: 600;
             color: #b64a00;
+            font-size: 0.95rem;
+            display: block;
+            margin-bottom: 4px;
           }
           input, select {
             width: 100%;
-            padding: 10px;
+            padding: 10px 11px;
             border: 1px solid #ffb366;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            color: #333;
+            border-radius: 8px;
+            margin-bottom: 14px;
+            color: #111827;
+            font-size: 1rem;
+            outline: none;
+            transition: box-shadow 0.18s ease, border-color 0.18s ease;
+            background: #fffdf9;
+          }
+          input:focus, select:focus {
+            border-color: #ff8c1a;
+            box-shadow: 0 0 0 2px rgba(255,140,26,0.20);
+          }
+          .bloque-display {
+            font-size: 1.6rem;
+            padding: 10px 0 4px;
+            margin: 0 0 6px;
+            text-align: center;
+            font-weight: 700;
+            color: #d85b00;
           }
           input[type=submit] {
+            margin-top: 6px;
             background: #d85b00;
-            color: #fff;
-            font-weight: bold;
+            color: #ffffff;
+            font-weight: 700;
             cursor: pointer;
-            transition: 0.3s;
+            transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.15s ease;
+            border-radius: 999px;
           }
           input[type=submit]:hover {
             background: #ff8c1a;
+            box-shadow: 0 8px 18px rgba(216,91,0,0.35);
+            transform: translateY(-1px);
+          }
+          input[type=submit]:active {
+            transform: translateY(0);
+            box-shadow: 0 4px 10px rgba(216,91,0,0.3);
           }
         </style>
       </head>
       <body class="theme-nacional-orange">
-        <div class="form-container">
-          <h1 class="title">REGISTRO NACIONAL</h1>
-          <h2 class="subtitle">Bloque ${bloque} ${etapa ? `- Etapa: ${etapa.charAt(0).toUpperCase() + etapa.slice(1)}` : ''}</h2>
-          <p><strong>ID:</strong> ${id || '(sin ID)'}</p>
-          <form action="/submit" method="POST">
-            <label for="bloque">Bloque:</label>
-            <p style="font-size: 1.5em; padding: 10px;">${bloque}</p><br><br>
+        <div class="form-wrapper">
+          <div class="form-container">
+            <h1 class="title">REGISTRO NACIONAL</h1>
+            <h2 class="subtitle">
+              Bloque ${bloque} ${etapa ? `· Etapa: ${etapa.charAt(0).toUpperCase() + etapa.slice(1)}` : ''}
+            </h2>
+            <p class="info-id">
+              <strong>ID:</strong> ${id || '(sin ID)'}
+            </p>
 
-            <label for="variedad">Variedad:</label>
-            <select name="variedad" required>
-              ${variedades.map(v => `<option value="${v.value}">${v.label}</option>`).join('')}
-            </select><br><br>
+            <form action="/submit" method="POST">
+              <label for="bloque">Bloque:</label>
+              <p class="bloque-display">${bloque}</p>
 
-            <label for="numero_tallos">Número de tallos:</label>
-            <input type="number" name="numero_tallos" required><br><br>
+              <label for="variedad">Variedad:</label>
+              <select name="variedad" required>
+                ${variedades.map(v => `<option value="${v.value}">${v.label}</option>`).join('')}
+              </select>
 
-            <input type="hidden" name="bloque" value="${bloque}" />
-            <input type="hidden" name="etapa" value="${etapa}" />
-            <input type="hidden" name="tipo" value="nacional" />
-            <input type="hidden" name="id" value="${id}" />
+              <label for="numero_tallos">Número de tallos:</label>
+              <input type="number" name="numero_tallos" required min="1" inputmode="numeric" />
 
-            <input type="submit" value="Enviar">
-          </form>
+              <input type="hidden" name="bloque" value="${bloque}" />
+              <input type="hidden" name="etapa" value="${etapa}" />
+              <input type="hidden" name="tipo" value="nacional" />
+              <input type="hidden" name="id" value="${id}" />
+
+              <input type="submit" value="Enviar registro">
+            </form>
+          </div>
         </div>
       </body>
       </html>
@@ -424,43 +489,176 @@ app.get('/', (req, res) => {
       <title>Formulario Fin de Corte</title>
       <link rel="stylesheet" type="text/css" href="/style.css"/>
       <style>
-        .tamano-options { display:flex; gap:8px; flex-wrap:wrap; }
-        .tamano-option { padding:8px 12px; border:1px solid #999; border-radius:6px; cursor:pointer; user-select:none; }
-        .tamano-option.selected { border-color:#007bff; box-shadow:0 0 0 2px rgba(0,123,255,.2); }
-        .hidden { display:none !important; }
+        * {
+          box-sizing: border-box;
+        }
+        body.theme-default {
+          margin: 0;
+          padding: 0;
+          background: #ffffff;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 100vh;
+        }
+        .form-wrapper {
+          width: 100%;
+          max-width: 520px;
+          padding: 16px;
+        }
+        .form-container {
+          background: #ffffff;
+          border-radius: 20px;
+          width: 100%;
+          box-shadow: 0 14px 40px rgba(0,0,0,0.12);
+          padding: 28px 24px 26px;
+          border: 2px solid #2563eb22;
+        }
+        h1 {
+          font-size: 1.8rem;
+          margin-bottom: 4px;
+          text-align: center;
+          color: #1d4ed8;
+          letter-spacing: 0.04em;
+        }
+        h2 {
+          font-size: 1.1rem;
+          margin-top: 0;
+          margin-bottom: 12px;
+          text-align: center;
+          color: #374151;
+          font-weight: 500;
+        }
+        h2 span.etapa {
+          color: #1d4ed8;
+          font-weight: 600;
+        }
+        p.info-id {
+          font-size: 0.95rem;
+          margin-bottom: 18px;
+          text-align: center;
+          color: #4b5563;
+        }
+        p.info-id strong {
+          color: #1d4ed8;
+        }
+        label {
+          font-weight: 600;
+          color: #111827;
+          font-size: 0.95rem;
+          display: block;
+          margin-bottom: 4px;
+        }
+        input, select {
+          width: 100%;
+          padding: 10px 11px;
+          border: 1px solid #cbd5f5;
+          border-radius: 8px;
+          margin-bottom: 14px;
+          color: #111827;
+          font-size: 1rem;
+          outline: none;
+          transition: box-shadow 0.18s ease, border-color 0.18s ease;
+          background: #f9fafb;
+        }
+        input:focus, select:focus {
+          border-color: #2563eb;
+          box-shadow: 0 0 0 2px rgba(37,99,235,0.20);
+        }
+        .bloque-display {
+          font-size: 1.6rem;
+          padding: 8px 0 4px;
+          margin: 0 0 6px;
+          text-align: center;
+          font-weight: 700;
+          color: #1d4ed8;
+        }
+        .tamano-options {
+          display:flex;
+          gap:8px;
+          flex-wrap:wrap;
+          margin-top: 6px;
+        }
+        .tamano-option {
+          padding:8px 12px;
+          border:1px solid #9ca3af;
+          border-radius:999px;
+          cursor:pointer;
+          user-select:none;
+          font-size:0.9rem;
+          text-transform:uppercase;
+          letter-spacing:0.06em;
+          background: #ffffff;
+          transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
+        }
+        .tamano-option.selected {
+          border-color:#2563eb;
+          box-shadow:0 0 0 2px rgba(37,99,235,.20);
+          background:#eff6ff;
+          transform: translateY(-1px);
+        }
+        .hidden {
+          display:none !important;
+        }
+        input[type=submit] {
+          margin-top: 6px;
+          background: #1d4ed8;
+          color: #ffffff;
+          font-weight: 700;
+          cursor: pointer;
+          transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.15s ease;
+          border-radius: 999px;
+        }
+        input[type=submit]:hover {
+          background: #2563eb;
+          box-shadow: 0 8px 18px rgba(37,99,235,0.35);
+          transform: translateY(-1px);
+        }
+        input[type=submit]:active {
+          transform: translateY(0);
+          box-shadow: 0 4px 10px rgba(37,99,235,0.3);
+        }
       </style>
     </head>
     <body class="theme-default">
-      <div class="form-container">
-        <h1>FIN DE CORTE — REGISTRO</h1>
-        <h2>Bloque ${bloque} ${etapa ? `— Etapa: ${etapa.charAt(0).toUpperCase() + etapa.slice(1)}` : ''}</h2>
-        <p><strong>ID:</strong> ${id || '(sin ID)'}</p>
+      <div class="form-wrapper">
+        <div class="form-container">
+          <h1>FIN DE CORTE — REGISTRO</h1>
+          <h2>
+            Bloque ${bloque}
+            ${etapa ? `· <span class="etapa">Etapa: ${etapa.charAt(0).toUpperCase() + etapa.slice(1)}</span>` : ''}
+          </h2>
+          <p class="info-id">
+            <strong>ID:</strong> ${id || '(sin ID)'}
+          </p>
 
-        <form action="/submit" method="POST" id="registroForm">
-          <label for="bloque">Bloque:</label>
-          <p style="font-size: 1.3em; padding: 8px 0 2px;">${bloque}</p>
+          <form action="/submit" method="POST" id="registroForm">
+            <label for="bloque">Bloque:</label>
+            <p class="bloque-display">${bloque}</p>
 
-          <label for="variedad">Variedad:</label>
-          <select name="variedad" required id="variedadSelect">
-            ${variedades.map(v => `<option value="${v.value}" ${v.value===seleccionVariedad?'selected':''}>${v.label}</option>`).join('')}
-          </select><br>
+            <label for="variedad">Variedad:</label>
+            <select name="variedad" required id="variedadSelect">
+              ${variedades.map(v => `<option value="${v.value}" ${v.value===seleccionVariedad?'selected':''}>${v.label}</option>`).join('')}
+            </select>
 
-          <div id="tamanoSection" class="hidden">
-            <label for="tamano">Elija Tamano:</label>
-            <div class="tamano-options" id="tamanoOptions"></div>
-            <input type="hidden" name="tamano" />
-          </div><br>
+            <div id="tamanoSection" class="hidden">
+              <label for="tamano">Elija Tamaño:</label>
+              <div class="tamano-options" id="tamanoOptions"></div>
+              <input type="hidden" name="tamano" />
+            </div>
 
-          <label for="numero_tallos">Número de tallos:</label>
-          <input type="number" name="numero_tallos" required><br>
+            <label for="numero_tallos">Número de tallos:</label>
+            <input type="number" name="numero_tallos" required min="1" inputmode="numeric" />
 
-          <input type="hidden" name="etapa" value="${etapa}" />
-          <input type="hidden" name="bloque" value="${bloque}" />
-          <input type="hidden" name="tipo" value="fin_corte" />
-          <input type="hidden" name="id" value="${id}" />
+            <input type="hidden" name="etapa" value="${etapa}" />
+            <input type="hidden" name="bloque" value="${bloque}" />
+            <input type="hidden" name="tipo" value="fin_corte" />
+            <input type="hidden" name="id" value="${id}" />
 
-          <input type="submit" value="Enviar">
-        </form>
+            <input type="submit" value="Enviar registro">
+          </form>
+        </div>
       </div>
 
       <script>
@@ -517,7 +715,7 @@ app.get('/', (req, res) => {
           }
           const visible = !document.getElementById('tamanoSection').classList.contains('hidden');
           if(visible && !document.querySelector('input[name="tamano"]').value){
-            e.preventDefault(); alert('Seleccione el tamano.'); return;
+            e.preventDefault(); alert('Seleccione el tamaño.'); return;
           }
         }
       </script>
@@ -560,15 +758,113 @@ app.post('/submit', ipWhitelist, async (req, res) => {
 
     // ✅ Registro exitoso
     return res.send(`
+      <!DOCTYPE html>
       <html lang="es">
-      <head><meta charset="UTF-8"><title>Registro exitoso</title></head>
-      <body style="font-family:sans-serif; text-align:center; margin-top:50px;">
-         <h1 style="font-size:40px; color:green;">✅ Registro guardado en base de datos</h1>
-         <p><strong>ID:</strong> ${saved.id}</p>
-         <p><strong>Variedad:</strong> ${saved.variedad}</p>
-         <p><strong>Bloque:</strong> ${saved.bloque}</p>
-         <p><strong>Tallos:</strong> ${saved.tallos}</p>
-         ${saved.tamano ? `<p><strong>Tamano:</strong> ${saved.tamano}</p>` : ''}
+      <head>
+        <meta charset="UTF-8">
+        <title>Registro exitoso</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <style>
+          * {
+            box-sizing: border-box;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f9fafb;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: #111827;
+          }
+          .card {
+            max-width: 560px;
+            width: 100%;
+            margin: 16px;
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+            padding: 32px 28px 26px;
+            text-align: center;
+            border: 2px solid #16a34a22;
+          }
+          h1 {
+            font-size: 2.4rem; /* 👈 título más grande */
+            margin-bottom: 10px;
+            color: #16a34a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+          }
+          h1 span.icon {
+            font-size: 2.6rem;
+          }
+          p {
+            margin: 6px 0;
+            font-size: 1rem;
+          }
+          p strong {
+            color: #111827;
+          }
+          .data {
+            margin-top: 14px;
+            padding-top: 10px;
+            border-top: 1px dashed #d1d5db;
+            text-align: left;
+            font-size: 0.98rem;
+          }
+          .data-item {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 4px;
+          }
+          .data-label {
+            font-weight: 600;
+            color: #4b5563;
+          }
+          .data-value {
+            font-weight: 500;
+            color: #111827;
+            text-align: right;
+          }
+        </style>
+      </head>
+      <body>
+        <main class="card">
+          <h1>
+            <span class="icon">✅</span>
+            <span>Registro guardado</span>
+          </h1>
+          <p>El registro se guardó correctamente en la base de datos.</p>
+
+          <div class="data">
+            <div class="data-item">
+              <span class="data-label">ID:</span>
+              <span class="data-value">${saved.id}</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">Variedad:</span>
+              <span class="data-value">${saved.variedad}</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">Bloque:</span>
+              <span class="data-value">${saved.bloque}</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">Tallos:</span>
+              <span class="data-value">${saved.tallos}</span>
+            </div>
+            ${saved.tamano ? `
+            <div class="data-item">
+              <span class="data-label">Tamaño:</span>
+              <span class="data-value">${saved.tamano}</span>
+            </div>` : ''}
+          </div>
+        </main>
       </body>
       </html>
     `);
@@ -594,25 +890,36 @@ app.post('/submit', ipWhitelist, async (req, res) => {
               display: flex;
               align-items: center;
               justify-content: center;
-              background: #ffedd5;
+              background: #fffbeb;
               font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
               color: #111827;
               padding: 16px;
             }
             .card {
-              max-width: 680px;
+              max-width: 640px;
               width: 100%;
               background: #ffffff;
               border-radius: 24px;
               box-shadow: 0 18px 45px rgba(15, 23, 42, 0.28);
               padding: 32px 28px;
               text-align: center;
+              border: 2px solid #facc1530;
+            }
+            h1 {
+              font-size: 2rem;
+              margin-bottom: 8px;
+              color: #b45309;
+            }
+            p {
+              font-size: 1rem;
+              margin-bottom: 4px;
             }
           </style>
         </head>
         <body>
           <main class="card">
             <h1>⚠️ Este código ya fue registrado</h1>
+            <p>Ya existe un registro con el mismo ID, bloque, fecha y tipo.</p>
             <p>Si crees que es un error, contacta con el administrador.</p>
           </main>
         </body>
