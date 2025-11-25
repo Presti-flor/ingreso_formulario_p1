@@ -339,23 +339,26 @@ app.get('/', (req, res) => {
 
   // ======= FORMULARIO FIN DE CORTE =============
   let variedades = [];
-  let seleccionVariedad = 'momentum';
+  let seleccionVariedad = 'freedom';
 
   if (bloque === '3') {
     variedades = [
-      { value: 'momentum', label: 'Momentum' },
-      { value: 'quick sand', label: 'Quick Sand' },
-      { value: 'pink floyd', label: 'Pink Floyd' },
       { value: 'freedom', label: 'Freedom' },
     ];
   } else if (bloque === '4') {
     variedades = [
       { value: 'freedom', label: 'Freedom' },
-      { value: 'hilux', label: 'Hilux' },
     ];
     seleccionVariedad = 'freedom';
-  } else if (bloque === '5' || bloque === '6') {
-    variedades = [{ value: 'freedom', label: 'Freedom' }];
+  } else if (bloque === '5') {
+    variedades = [
+      { value: 'freedom', label: 'Freedom' },
+      { value: 'moody blue', label: 'Moody Blue' },
+      { value: 'queen berry', label: 'Queen Berry' },
+      { value: 'pink mondial', label: 'Pink Mondial' },
+      { value: 'white ohora', label: 'White Ohora' },
+      { value: 'pink ohora', label: 'Pink Ohora' },
+    ];
     seleccionVariedad = 'freedom';
   } else if (bloque === '7') {
     variedades = [
@@ -373,16 +376,14 @@ app.get('/', (req, res) => {
     seleccionVariedad = 'star platinum';
   } else if (bloque === '1') {
     variedades = [
-      { value: 'vendela', label: 'Vendela' },
-      { value: 'pink floyd', label: 'Pink Floyd' },
+      { value: 'freedom', label: 'Freedom' },
     ];
-    seleccionVariedad = 'vendela';
+    seleccionVariedad = 'freedom';
   } else if (bloque === '2') {
     variedades = [
-      { value: 'coral reff', label: 'Coral Reff' },
-      { value: 'hummer', label: 'Hummer' },
+      { value: 'freedom', label: 'Freedom' },
     ];
-    seleccionVariedad = 'coral reff';
+    seleccionVariedad = 'freedom';
   } else if (bloque === '9') {
     variedades = [
       { value: 'freedom', label: 'Freedom' },
