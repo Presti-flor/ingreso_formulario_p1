@@ -369,14 +369,11 @@ app.get('/', (req, res) => {
       { value: 'freedom', label: 'Freedom' },
     ];
     seleccionVariedad = 'freedom';
-  } else if (bloque === '8') {
+  } else if (bloque === '6') {
     variedades = [
-      { value: 'star platinum', label: 'Star Platinum' },
-      { value: 'candlelight', label: 'Candlelight' },
-      { value: 'sommersand', label: 'Sommersand' },
       { value: 'freedom', label: 'Freedom' },
     ];
-    seleccionVariedad = 'star platinum';
+    seleccionVariedad = 'freedom';
   } else if (bloque === '1') {
     variedades = [
       { value: 'freedom', label: 'Freedom' },
@@ -387,38 +384,41 @@ app.get('/', (req, res) => {
       { value: 'freedom', label: 'Freedom' },
     ];
     seleccionVariedad = 'freedom';
-  } else if (bloque === '9') {
+  } else if (bloque === '7') {
     variedades = [
-      { value: 'freedom', label: 'Freedom' },
-    ];
-    seleccionVariedad = 'freedom';
-  } else if (bloque === '10') {
-    variedades = [
-      { value: 'shimmer', label: 'Shimmer'},
-      { value: 'freedom', label: 'Freedom'},
-    ];
-    seleccionVariedad = 'shimmer';
-  } else if (bloque === '11') {
-    variedades = [
-      { value: 'pink mondial', label: 'Pink Mondial'},
-      { value: 'whithe ohora', label: 'Whithe Ohora'},
-      { value: 'pink ohora', label: 'Pink Ohora'},
-      { value: 'mondial', label: 'Mondial'},
-    ];
-    seleccionVariedad = 'pink mondial';
-  } else if (bloque === '12') {
-    variedades = [
-      { value: 'mondial', label: 'Mondial'},
-      { value: 'blessing', label: 'Blessing'},
-      { value: 'pink amareto', label: 'Pink Amareto'},
-      { value: 'sommersand', label: 'Sommersand'},
+      { value: 'mondial', label: 'Mondial' },
+      { value: 'moody blue', label: 'Moody Blue' },
+      { value: 'queen berry', label: 'Queen Berry' },
+      { value: 'momentum', label: 'Momentum' },
+    
     ];
     seleccionVariedad = 'mondial';
-  } else if (bloque === '13') {
+  } else if (bloque === '12') {
     variedades = [
       { value: 'freedom', label: 'Freedom'},
     ];
     seleccionVariedad = 'freedom';
+  } else if (bloque === '9') {
+    variedades = [
+      { value: 'vendela', label: 'Vendela'},
+      { value: 'hummer', label: 'Hummer'},
+      { value: 'coral reff', label: 'Coral Reff'},
+      { value: 'pink floyd', label: 'Pink Floyd'},
+    ];
+    seleccionVariedad = 'vendela';
+  } else if (bloque === '10') {
+    variedades = [
+      { value: 'mondial', label: 'Mondial'},
+      { value: 'hummer', label: 'Hummer'},
+      { value: 'hilux', label: 'Hilux'},
+      { value: 'blessing', label: 'Blessing'},
+    ];
+    seleccionVariedad = 'mondial';
+  } else if (bloque === '11') {
+    variedades = [
+      { value: 'vendela', label: 'Vendela'},
+    ];
+    seleccionVariedad = 'vendela';
   }
 
   res.send(`
