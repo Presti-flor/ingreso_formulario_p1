@@ -276,19 +276,20 @@ async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque,
   }
 
   // Antiduplicado basado en Google Sheets: ID + bloque únicos en la hoja
+  // Antiduplicado basado en Google Sheets: ID + bloque + fecha
   if (!force) {
     const yaExiste = await existsSameRecord({
       id,
-      bloque: bloqueNorm,   // aquí usamos el "código" de bloque tal cual
+      bloque: bloqueNorm, // aquí usamos el "código" de bloque tal cual
+      fecha,              // 👈 NUEVO: también controlamos por fecha
     });
 
     if (yaExiste) {
-      const err = new Error('Este código ya fue registrado antes para este bloque.');
+      const err = new Error('Este código ya fue registrado antes en esta fecha para este bloque.');
       err.code = 'DUPLICATE';
       throw err;
     }
   }
-
   // 🟢 1) Guardar en PostgreSQL (misma tabla que el otro sistema)
   await saveToPostgresForm({
     id,

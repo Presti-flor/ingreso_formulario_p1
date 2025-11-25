@@ -35,11 +35,12 @@ function generateUniqueId() {
  * G: tipo
  * H: id
  */
-async function existsSameRecord({ id, bloque }) {
-  if (!id || !bloque) return false; // sin id o sin bloque no hacemos control
+async function existsSameRecord({ id, bloque, fecha }) {
+  if (!id || !bloque || !fecha) return false; // sin alguno de estos, no hacemos control
 
   const idStr = String(id).trim();
-  const bloqueStr = String(bloque).trim();  // 👈 ya NO limpiamos el punto
+  const bloqueStr = String(bloque).trim();
+  const fechaStr = String(fecha).trim();
 
   try {
     const resp = await sheets.spreadsheets.values.get({
@@ -50,9 +51,16 @@ async function existsSameRecord({ id, bloque }) {
     const rows = resp.data.values || [];
 
     const found = rows.some(row => {
-      const sheetBloque = (row[1] || '').toString().trim(); // Columna B
-      const sheetId = (row[7] || '').toString().trim();     // Columna H
-      return sheetId === idStr && sheetBloque === bloqueStr;
+      const sheetFecha  = (row[0] || '').toString().trim(); // Columna A: fecha
+      const sheetBloque = (row[1] || '').toString().trim(); // Columna B: bloque
+      const sheetId     = (row[7] || '').toString().trim(); // Columna H: id
+
+      // 🧠 Ahora la combinación es: MISMA fecha + MISMO bloque + MISMO id
+      return (
+        sheetId     === idStr &&
+        sheetBloque === bloqueStr &&
+        sheetFecha  === fechaStr
+      );
     });
 
     console.log(
@@ -60,6 +68,8 @@ async function existsSameRecord({ id, bloque }) {
       idStr,
       'Bloque',
       bloqueStr,
+      'Fecha',
+      fechaStr,
       '=>',
       found ? 'DUPLICADO' : 'libre'
     );
