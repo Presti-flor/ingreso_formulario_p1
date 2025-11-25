@@ -70,7 +70,7 @@ async function addRecord(data) {
     fecha: data.fecha,
     bloque: sanitizedBloque,
     variedad: data.variedad,
-    tamaño: data.tamaño,
+    tamano: data.tamano,
     tallos: data.tallos,
     etapa: data.etapa,
     tipo: data.tipo,
@@ -88,7 +88,7 @@ async function addRecord(data) {
             data.fecha,                 // A: fecha
             sanitizedBloque,            // B: bloque
             data.variedad || '',        // C: variedad
-            data.tamaño || '',          // D: tamaño
+            data.tamano || '',          // D: tamaño
             data.tallos ?? '',          // E: tallos
             data.etapa || '',           // F: etapa
             data.tipo || '',            // G: tipo
