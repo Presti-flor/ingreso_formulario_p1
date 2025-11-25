@@ -591,7 +591,7 @@ app.get('/', (req, res) => {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   background: #e0ecff;           /* 👈 Azul muy suave para que se vea */
-  color: #1d4ed8;                /* 👈 Letras azul oscuro */
+  color: #000000ff;                /* 👈 Letras azul oscuro */
   font-weight: 600;
   transition: background 0.18s ease, border-color 0.18s ease,
               box-shadow 0.18s ease, transform 0.12s ease;
@@ -603,8 +603,8 @@ app.get('/', (req, res) => {
 
 .tamano-option.selected {
   border-color: #1d4ed8;
-  background: #bcd4ff;           /* 👈 Más fuerte cuando está seleccionado */
-  box-shadow: 0 0 0 2px rgba(29,78,216,.25);
+  background: #61f91aff;           /* 👈 Más fuerte cuando está seleccionado */
+  box-shadow: 0 0 0 2px rgba(119, 251, 4, 1);
   transform: translateY(-1px);
 }
         .hidden {
