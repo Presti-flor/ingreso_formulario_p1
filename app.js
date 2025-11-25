@@ -26,7 +26,7 @@ const pool = new Pool({
   CREATE TABLE IF NOT EXISTS registrosp1 (
     id        TEXT NOT NULL,
     fecha     DATE NOT NULL,
-    bloque    TEXT NOT NULL,   -- 👈 ahora TEXT para permitir valores como '1A'
+    bloque    NUMERIC NOT NULL,   -- 👈 ahora numérico/decimal
     variedad  TEXT NOT NULL,
     tallos    INTEGER NOT NULL,
     tamano    TEXT,
@@ -46,14 +46,14 @@ async function saveToPostgresForm({ id, fecha, bloque, variedad, tallos, tamano,
   `;
 
   const values = [
-    id,                       // id (texto, tú lo defines)
-    fecha,                    // fecha 'YYYY-MM-DD'
-    String(bloque),           // bloque como TEXTO (puede ser '1A')
-    tallos,                   // tallos (número)
-    variedad,                 // variedad
-    etapa || null,            // etapa
-    tipo || null,             // tipo
-    tamano || null,           // tamano
+    id,                         // id (texto, tú lo defines)
+    fecha,                      // fecha 'YYYY-MM-DD'
+    bloque !== null ? Number(bloque) : null, // bloque numérico (decimal/integer)
+    variedad,                   // variedad
+    tallos,                     // tallos (número)
+    etapa || null,              // etapa
+    tipo || null,               // tipo
+    tamano || null,             // tamano
   ];
 
   console.log('🧪 INSERT Form → Postgres', { query, values });
@@ -112,7 +112,7 @@ function normalizeSizeForStorage(variedad, bloque, tamano, tipo) {
 /** =============== Helper: variedades de FIN DE CORTE (reusado) =============== */
 function getFinCorteConfig(bloque) {
   const b = String(bloque);
-  /** 
+  /**
    * Aquí mantenemos exactamente las variedades de FIN DE CORTE,
    * y las usamos también para el formulario NACIONAL.
    */
@@ -242,10 +242,16 @@ async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque,
     throw new Error('El campo tallos debe ser un número positivo');
   }
 
-  // 👇 ahora NO quitamos la letra, guardamos el bloque tal cual (ej: '1A')
+  // 👇 bloque como texto (para Sheets / lógica)
   const bloqueNorm = (bloque || '').toString().trim();
   if (!bloqueNorm) {
     throw new Error('Bloque inválido');
+  }
+
+  // 👇 bloque como número (para la base de datos NUMERIC/DECIMAL)
+  const bloqueNum = Number(bloqueNorm);
+  if (Number.isNaN(bloqueNum)) {
+    throw new Error('Bloque debe ser numérico/decimal');
   }
 
   const fecha = new Date().toISOString().split('T')[0];
@@ -258,7 +264,7 @@ async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque,
   const dataToSave = {
     id,
     fecha,
-    bloque: bloqueNorm,      // 👈 bloque con letra
+    bloque: bloqueNorm,      // 👈 para Sheets lo dejamos como texto
     variedad,
     tallos: tallosNum,
     etapa: etapa || '',
@@ -273,7 +279,7 @@ async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque,
   if (!force) {
     const yaExiste = await existsSameRecord({
       id,
-      bloque: bloqueNorm,   // usamos el bloque NORMALIZADO (con letra si la tiene)
+      bloque: bloqueNorm,   // aquí usamos el "código" de bloque tal cual
     });
 
     if (yaExiste) {
@@ -287,10 +293,10 @@ async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque,
   await saveToPostgresForm({
     id,
     fecha,
-    bloque: bloqueNorm,
+    bloque: bloqueNum,          // 👈 numérico para la BD
     variedad,
     tallos: tallosNum,
-    tamano: sizeForStorage,   // aquí usamos "tamano" para la columna de Postgres
+    tamano: sizeForStorage,     // aquí usamos "tamano" para la columna de Postgres
     etapa: etapa || '',
     tipo: tipoNorm,
   });
