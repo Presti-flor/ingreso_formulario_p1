@@ -580,24 +580,33 @@ app.get('/', (req, res) => {
           flex-wrap:wrap;
           margin-top: 6px;
         }
-        .tamano-option {
-          padding:8px 12px;
-          border:1px solid #9ca3af;
-          border-radius:999px;
-          cursor:pointer;
-          user-select:none;
-          font-size:0.9rem;
-          text-transform:uppercase;
-          letter-spacing:0.06em;
-          background: #ffffff;
-          transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
-        }
-        .tamano-option.selected {
-          border-color:#2563eb;
-          box-shadow:0 0 0 2px rgba(37,99,235,.20);
-          background:#eff6ff;
-          transform: translateY(-1px);
-        }
+        /* Botones tamaño visibles sobre fondo blanco */
+.tamano-option {
+  padding: 10px 14px;
+  border: 2px solid #1d4ed8;
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: #e0ecff;           /* 👈 Azul muy suave para que se vea */
+  color: #1d4ed8;                /* 👈 Letras azul oscuro */
+  font-weight: 600;
+  transition: background 0.18s ease, border-color 0.18s ease,
+              box-shadow 0.18s ease, transform 0.12s ease;
+}
+
+.tamano-option:hover {
+  background: #d2e4ff;           /* 👈 Un poco más fuerte al pasar */
+}
+
+.tamano-option.selected {
+  border-color: #1d4ed8;
+  background: #bcd4ff;           /* 👈 Más fuerte cuando está seleccionado */
+  box-shadow: 0 0 0 2px rgba(29,78,216,.25);
+  transform: translateY(-1px);
+}
         .hidden {
           display:none !important;
         }
