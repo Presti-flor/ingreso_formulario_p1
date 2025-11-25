@@ -277,15 +277,17 @@ async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque,
 
   // Antiduplicado basado en Google Sheets: ID + bloque únicos en la hoja
   // Antiduplicado basado en Google Sheets: ID + bloque + fecha
+  // Antiduplicado basado en Google Sheets: ID + bloque + fecha + tipo
   if (!force) {
     const yaExiste = await existsSameRecord({
       id,
-      bloque: bloqueNorm, // aquí usamos el "código" de bloque tal cual
-      fecha,              // 👈 NUEVO: también controlamos por fecha
+      bloque: bloqueNorm,   // código de bloque tal cual (con punto si tiene)
+      fecha,
+      tipo: tipoNorm,       // 👈 ahora también diferenciamos por tipo
     });
 
     if (yaExiste) {
-      const err = new Error('Este código ya fue registrado antes en esta fecha para este bloque.');
+      const err = new Error('Este código ya fue registrado antes para este bloque, fecha y tipo.');
       err.code = 'DUPLICATE';
       throw err;
     }

@@ -35,12 +35,13 @@ function generateUniqueId() {
  * G: tipo
  * H: id
  */
-async function existsSameRecord({ id, bloque, fecha }) {
-  if (!id || !bloque || !fecha) return false; // sin alguno de estos, no hacemos control
+async function existsSameRecord({ id, bloque, fecha, tipo }) {
+  if (!id || !bloque || !fecha || !tipo) return false; // necesitamos todo para controlar
 
-  const idStr = String(id).trim();
+  const idStr     = String(id).trim();
   const bloqueStr = String(bloque).trim();
-  const fechaStr = String(fecha).trim();
+  const fechaStr  = String(fecha).trim();
+  const tipoStr   = String(tipo).trim().toLowerCase();
 
   try {
     const resp = await sheets.spreadsheets.values.get({
@@ -51,15 +52,17 @@ async function existsSameRecord({ id, bloque, fecha }) {
     const rows = resp.data.values || [];
 
     const found = rows.some(row => {
-      const sheetFecha  = (row[0] || '').toString().trim(); // Columna A: fecha
-      const sheetBloque = (row[1] || '').toString().trim(); // Columna B: bloque
-      const sheetId     = (row[7] || '').toString().trim(); // Columna H: id
+      const sheetFecha  = (row[0] || '').toString().trim();               // A: fecha
+      const sheetBloque = (row[1] || '').toString().trim();               // B: bloque
+      const sheetTipo   = (row[6] || '').toString().trim().toLowerCase(); // G: tipo
+      const sheetId     = (row[7] || '').toString().trim();               // H: id
 
-      // 🧠 Ahora la combinación es: MISMA fecha + MISMO bloque + MISMO id
+      // 🔑 Ahora: misma fecha + mismo bloque + mismo tipo + mismo id
       return (
         sheetId     === idStr &&
         sheetBloque === bloqueStr &&
-        sheetFecha  === fechaStr
+        sheetFecha  === fechaStr &&
+        sheetTipo   === tipoStr
       );
     });
 
@@ -70,6 +73,8 @@ async function existsSameRecord({ id, bloque, fecha }) {
       bloqueStr,
       'Fecha',
       fechaStr,
+      'Tipo',
+      tipoStr,
       '=>',
       found ? 'DUPLICADO' : 'libre'
     );
