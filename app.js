@@ -374,6 +374,14 @@ app.get('/', (req, res) => {
       { value: 'freedom', label: 'Freedom' },
     ];
     seleccionVariedad = 'freedom';
+  }else if (bloque === '8') {
+    variedades = [
+      { value: 'vendela', label: 'Vendela' },
+      { value: 'quick sand', label: 'Quick Sand' },
+      { value: 'tifany', label: 'Tifany' },
+      { value: 'yellow bikini', label: 'Yellow Bikini' },
+    ];
+    seleccionVariedad = 'vendela';
   } else if (bloque === '1') {
     variedades = [
       { value: 'freedom', label: 'Freedom' },
