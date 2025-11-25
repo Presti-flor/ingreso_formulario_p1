@@ -24,31 +24,46 @@ function generateUniqueId() {
 }
 
 /**
- * Verifica si ya existe un registro con el mismo ID en la hoja.
- * Asumimos que el ID se guarda en la columna H (8ª columna),
- * porque en addRecord lo estamos enviando como último valor.
+ * Verifica si ya existe un registro con el mismo ID **y bloque** en la hoja.
+ * Estructura de columnas en la hoja "Ingreso Fin y Nac":
+ * A: fecha
+ * B: bloque
+ * C: variedad
+ * D: tamano
+ * E: tallos
+ * F: etapa
+ * G: tipo
+ * H: id
  */
-async function existsSameRecord({ id }) {
-  if (!id) return false; // sin id no hacemos control
+async function existsSameRecord({ id, bloque }) {
+  if (!id || !bloque) return false; // sin id o sin bloque no hacemos control
 
   const idStr = String(id).trim();
+  const bloqueStr = String(bloque).replace(/[^0-9]/g, '').trim();
 
   try {
-    // Leemos solo la columna H (ID) de la hoja
+    // Leemos A:H para tener bloque (B) e id (H)
     const resp = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Ingreso Fin y Nac!H:H', // Columna H completa
+      range: 'Ingreso Fin y Nac!A:H',
     });
 
     const rows = resp.data.values || [];
 
-    // rows es un array de arrays: [[id1],[id2],...]
     const found = rows.some(row => {
-      const cell = (row[0] || '').toString().trim();
-      return cell === idStr;
+      const sheetBloque = (row[1] || '').toString().replace(/[^0-9]/g, '').trim(); // Columna B
+      const sheetId = (row[7] || '').toString().trim();                             // Columna H
+      return sheetId === idStr && sheetBloque === bloqueStr;
     });
 
-    console.log('[existsSameRecord] ID', idStr, '=>', found ? 'DUPLICADO' : 'libre');
+    console.log(
+      '[existsSameRecord] ID',
+      idStr,
+      'Bloque',
+      bloqueStr,
+      '=>',
+      found ? 'DUPLICADO' : 'libre'
+    );
     return found;
   } catch (error) {
     console.error('Error verificando duplicado en Google Sheets:', error);
@@ -58,7 +73,7 @@ async function existsSameRecord({ id }) {
 }
 
 // Función para agregar una nueva fila
-// Espera un objeto: { id, fecha, bloque, variedad, tallos, etapa, tipo, tamaño }
+// Espera un objeto: { id, fecha, bloque, variedad, tallos, etapa, tipo, tamano }
 async function addRecord(data) {
   const sanitizedBloque = String(data.bloque || '').replace(/[^0-9]/g, '');
 
@@ -88,7 +103,7 @@ async function addRecord(data) {
             data.fecha,                 // A: fecha
             sanitizedBloque,            // B: bloque
             data.variedad || '',        // C: variedad
-            data.tamano || '',          // D: tamaño
+            data.tamano || '',          // D: tamano
             data.tallos ?? '',          // E: tallos
             data.etapa || '',           // F: etapa
             data.tipo || '',            // G: tipo

@@ -143,11 +143,15 @@ async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque,
   }
 
   // Antiduplicado basado en Google Sheets: ID único en la hoja
+  // Antiduplicado basado en Google Sheets: ID + bloque únicos en la hoja
   if (!force) {
-    const yaExiste = await existsSameRecord({ id });
+    const yaExiste = await existsSameRecord({
+      id,
+      bloque: sanitizedBloque,   // usamos el bloque ya limpiado
+    });
 
     if (yaExiste) {
-      const err = new Error('Este código ya fue registrado antes.');
+      const err = new Error('Este código ya fue registrado antes para este bloque.');
       err.code = 'DUPLICATE';
       throw err;
     }
