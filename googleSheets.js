@@ -37,9 +37,7 @@ function generateUniqueId() {
  */
 async function existsSameRecord({ id, bloque }) {
   if (!id || !bloque) return false; // sin id o sin bloque no hacemos control
-
-  const idStr = String(id).trim();
-  const bloqueStr = String(bloque).replace(/[^0-9]/g, '').trim();
+  const bloqueStr = String(bloque).trim();
 
   try {
     // Leemos A:H para tener bloque (B) e id (H)
