@@ -11,16 +11,17 @@ app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// 🔌 Conexión a PostgreSQL (Railway / misma BD del otro servicio)
+// 🔌 Conexión a PostgreSQL (Railway / misma BD del otro servicio)//////
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false,
+    rejectUnauthorized: false, // con Railway casi siempre lo dejamos así
   },
 });
-
 /*
+  Asegúrate que en PostgreSQL tengas algo así (adaptado a tu diseño de ID NO autoincremental):
+
   CREATE TABLE IF NOT EXISTS registrosp1 (
     id        TEXT NOT NULL,
     fecha     DATE NOT NULL,
@@ -44,14 +45,14 @@ async function saveToPostgresForm({ id, fecha, bloque, variedad, tallos, tamano,
   `;
 
   const values = [
-    id,
-    fecha,
-    parseInt(bloque, 10),
-    variedad,
-    tallos,
-    etapa || null,
-    tipo || null,
-    tamano || null,
+    id,                      // id (texto, tú lo defines)
+    fecha,                   // fecha 'YYYY-MM-DD'
+    parseInt(bloque, 10),    // bloque
+    variedad,                // variedad
+    tallos,                  // tallos (número)
+    etapa || null,           // etapa
+    tipo || null,            // tipo
+    tamano || null,          // tamano
   ];
 
   console.log('🧪 INSERT Form → Postgres', { query, values });
@@ -61,7 +62,6 @@ async function saveToPostgresForm({ id, fecha, bloque, variedad, tallos, tamano,
 
 // ====== IP Whitelist Setup ======
 app.set('trust proxy', true);
-
 const ALLOWED_IPS = (process.env.ALLOWED_IPS || '181.78.78.61,186.102.115.133,186.102.51.69,186.102.77.146,190.61.45.230,192.168.10.23,192.168.10.1,186.102.62.30,186.102.55.56')
   .split(',')
   .map(ip => ip.trim())
@@ -89,7 +89,7 @@ function allowedSizes(variedad, bloque) {
   const v = (variedad || '').toLowerCase().trim();
   const b = String(bloque || '').trim();
   if (v === 'freedom') return ['largo', 'corto', 'ruso'];
-  if (v === 'vendela' && b === '1') return ['na'];
+  if (v === 'vendela' && b === '1') return ['na']; // NA se muestra pero se guarda vacío
   return [];
 }
 
@@ -101,11 +101,11 @@ function isSizeAllowed(variedad, bloque, tamano) {
 // Si el tamano es "na" => guardar en blanco. Si es válido, devolver en minúsculas.
 // tipo = nacional => jamás guarda tamano.
 function normalizeSizeForStorage(variedad, bloque, tamano, tipo) {
-  if ((tipo || '').toLowerCase() === 'nacional') return null;
+  if ((tipo || '').toLowerCase() === 'nacional') return null; // nacional jamás guarda tamano
   const t = (tamano || '').toLowerCase().trim();
-  if (!isSizeAllowed(variedad, bloque, t)) return null;
-  if (t === 'na') return null;
-  return t;
+  if (!isSizeAllowed(variedad, bloque, t)) return null; // inválidos => no guardar
+  if (t === 'na') return null; // NA => celda vacía
+  return t; // 'largo' | 'corto' | 'ruso'
 }
 
 /** =============== LÓGICA CENTRAL: PROCESAR + ANTIDUPLICADO =============== */
@@ -124,10 +124,10 @@ async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque,
   const fecha = new Date().toISOString().split('T')[0];
   const tipoNorm = (tipo || '').toLowerCase();
 
-  // Normalizar tamano para almacenar
+  // Normalizar tamano para almacenar (en BD: "tamano")
   const sizeForStorage = normalizeSizeForStorage(variedad, sanitizedBloque, tamano, tipoNorm);
 
-  // Objeto para Google Sheets
+  // Objeto para Google Sheets (coincide con googleSheets.js)
   const dataToSave = {
     id,
     fecha,
@@ -142,6 +142,7 @@ async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque,
     dataToSave.tamano = sizeForStorage;
   }
 
+  // Antiduplicado basado en Google Sheets: ID único en la hoja
   if (!force) {
     const yaExiste = await existsSameRecord({ id });
 
@@ -152,19 +153,19 @@ async function processAndSaveForm({ id, variedad, tamano, tallos, etapa, bloque,
     }
   }
 
-  // 🟢 Guardar en PostgreSQL
+  // 🟢 1) Guardar en PostgreSQL (misma tabla que el otro sistema)
   await saveToPostgresForm({
     id,
     fecha,
     bloque: sanitizedBloque,
     variedad,
     tallos: tallosNum,
-    tamano: sizeForStorage,
+    tamano: sizeForStorage,   // aquí usamos "tamano" para la columna de Postgres
     etapa: etapa || '',
     tipo: tipoNorm,
   });
 
-  // 🟢 Guardar en Google Sheets
+  // 🟢 2) Guardar en Google Sheets (flujo original)
   await addRecord(dataToSave);
 
   console.log('✅ [FORM] Registrado correctamente (Postgres + Sheets):', {
@@ -186,12 +187,11 @@ app.get('/', (req, res) => {
   const bloque = req.query.bloque || '3';
   const etapa = req.query.etapa || '';
   const tipo = req.query.tipo || '';
-  const id = req.query.id || '';
+  const id = req.query.id || ''; // ⬅️ ID VIENE POR QUERY
 
-  // ======= FORMULARIO TIPO NACIONAL ============
+  // ======= FORMULARIO TIPO NACIONAL (tema naranja) =============
   if (tipo === 'nacional') {
     let variedades = [];
-
     if (bloque === '3') {
       variedades = [
         { value: 'momentum', label: 'Momentum' },
@@ -229,7 +229,9 @@ app.get('/', (req, res) => {
         { value: 'hummer', label: 'Hummer' },
       ];
     } else if (bloque === '9') {
-      variedades = [{ value: 'freedom', label: 'Freedom' }];
+      variedades = [
+        { value: 'freedom', label: 'Freedom' },
+      ];
     } else if (bloque === '10') {
       variedades = [
         { value: 'shimmer', label: 'Shimmer'},
@@ -250,31 +252,76 @@ app.get('/', (req, res) => {
         { value: 'sommersand', label: 'Sommersand'},
       ];
     } else if (bloque === '13') {
-      variedades = [{ value: 'freedom', label: 'Freedom' }];
+      variedades = [
+        { value: 'freedom', label: 'Freedom'},
+      ];
     }
 
     return res.send(`
       <html lang="es">
       <head>
         <meta charset="UTF-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <title>Formulario Tallos Nacional</title>
         <link rel="stylesheet" type="text/css" href="/style.css"/>
+        <style>
+          body.theme-nacional-orange {
+            background: #fdfdfd;
+            color: #d85b00;
+            font-family: 'Poppins', sans-serif;
+          }
+          .form-container {
+            background: #ffffff;
+            border: 2px solid #ffb366;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            margin: 40px auto;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+            padding: 2em;
+          }
+          h1.title, h2.subtitle {
+            color: #d85b00;
+          }
+          label {
+            font-weight: bold;
+            color: #b64a00;
+          }
+          input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ffb366;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            color: #333;
+          }
+          input[type=submit] {
+            background: #d85b00;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+          }
+          input[type=submit]:hover {
+            background: #ff8c1a;
+          }
+        </style>
       </head>
       <body class="theme-nacional-orange">
         <div class="form-container">
           <h1 class="title">REGISTRO NACIONAL</h1>
-          <h2 class="subtitle">Bloque ${bloque}</h2>
+          <h2 class="subtitle">Bloque ${bloque} ${etapa ? `- Etapa: ${etapa.charAt(0).toUpperCase() + etapa.slice(1)}` : ''}</h2>
           <p><strong>ID:</strong> ${id || '(sin ID)'}</p>
           <form action="/submit" method="POST">
-            <label>Bloque:</label>
+            <label for="bloque">Bloque:</label>
             <p style="font-size: 1.5em; padding: 10px;">${bloque}</p><br><br>
 
-            <label>Variedad:</label>
+            <label for="variedad">Variedad:</label>
             <select name="variedad" required>
               ${variedades.map(v => `<option value="${v.value}">${v.label}</option>`).join('')}
             </select><br><br>
 
-            <label>Número de tallos:</label>
+            <label for="numero_tallos">Número de tallos:</label>
             <input type="number" name="numero_tallos" required><br><br>
 
             <input type="hidden" name="bloque" value="${bloque}" />
@@ -290,7 +337,7 @@ app.get('/', (req, res) => {
     `);
   }
 
-  // ======= FORMULARIO FIN DE CORTE ============
+  // ======= FORMULARIO FIN DE CORTE =============
   let variedades = [];
   let seleccionVariedad = 'momentum';
 
@@ -337,7 +384,9 @@ app.get('/', (req, res) => {
     ];
     seleccionVariedad = 'coral reff';
   } else if (bloque === '9') {
-    variedades = [{ value: 'freedom', label: 'Freedom' }];
+    variedades = [
+      { value: 'freedom', label: 'Freedom' },
+    ];
     seleccionVariedad = 'freedom';
   } else if (bloque === '10') {
     variedades = [
@@ -362,7 +411,9 @@ app.get('/', (req, res) => {
     ];
     seleccionVariedad = 'mondial';
   } else if (bloque === '13') {
-    variedades = [{ value: 'freedom', label: 'Freedom' }];
+    variedades = [
+      { value: 'freedom', label: 'Freedom'},
+    ];
     seleccionVariedad = 'freedom';
   }
 
@@ -370,11 +421,12 @@ app.get('/', (req, res) => {
     <html lang="es">
     <head>
       <meta charset="UTF-8"/>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
       <title>Formulario Fin de Corte</title>
       <link rel="stylesheet" type="text/css" href="/style.css"/>
       <style>
         .tamano-options { display:flex; gap:8px; flex-wrap:wrap; }
-        .tamano-option { padding:8px 12px; border:1px solid #999; border-radius:6px; cursor:pointer; }
+        .tamano-option { padding:8px 12px; border:1px solid #999; border-radius:6px; cursor:pointer; user-select:none; }
         .tamano-option.selected { border-color:#007bff; box-shadow:0 0 0 2px rgba(0,123,255,.2); }
         .hidden { display:none !important; }
       </style>
@@ -382,25 +434,25 @@ app.get('/', (req, res) => {
     <body class="theme-default">
       <div class="form-container">
         <h1>FIN DE CORTE — REGISTRO</h1>
+        <h2>Bloque ${bloque} ${etapa ? `— Etapa: ${etapa.charAt(0).toUpperCase() + etapa.slice(1)}` : ''}</h2>
         <p><strong>ID:</strong> ${id || '(sin ID)'}</p>
 
         <form action="/submit" method="POST" id="registroForm">
+          <label for="bloque">Bloque:</label>
+          <p style="font-size: 1.3em; padding: 8px 0 2px;">${bloque}</p>
 
-          <label>Bloque:</label>
-          <p style="font-size:1.3em;">${bloque}</p>
-
-          <label>Variedad:</label>
+          <label for="variedad">Variedad:</label>
           <select name="variedad" required id="variedadSelect">
             ${variedades.map(v => `<option value="${v.value}" ${v.value===seleccionVariedad?'selected':''}>${v.label}</option>`).join('')}
           </select><br>
 
           <div id="tamanoSection" class="hidden">
-            <label>Elija Tamano:</label>
+            <label for="tamano">Elija Tamano:</label>
             <div class="tamano-options" id="tamanoOptions"></div>
             <input type="hidden" name="tamano" />
           </div><br>
 
-          <label>Número de tallos:</label>
+          <label for="numero_tallos">Número de tallos:</label>
           <input type="number" name="numero_tallos" required><br>
 
           <input type="hidden" name="etapa" value="${etapa}" />
@@ -480,6 +532,7 @@ app.post('/submit', ipWhitelist, async (req, res) => {
   const { id, variedad, tamano, numero_tallos, etapa, bloque, tipo, force } = req.body;
   const forceFlag = force === 'true' || force === '1';
 
+  // Mapeamos a los nombres internos que usa la lógica
   const tallos = numero_tallos;
 
   console.log('[SUBMIT]', {
@@ -506,6 +559,7 @@ app.post('/submit', ipWhitelist, async (req, res) => {
       force: forceFlag,
     });
 
+    // ✅ Registro exitoso
     return res.send(`
       <html lang="es">
       <head><meta charset="UTF-8"><title>Registro exitoso</title></head>
@@ -532,10 +586,33 @@ app.post('/submit', ipWhitelist, async (req, res) => {
         <html lang="es">
         <head>
           <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <title>Código ya registrado</title>
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body {
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              background: #ffedd5;
+              font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+              color: #111827;
+              padding: 16px;
+            }
+            .card {
+              max-width: 680px;
+              width: 100%;
+              background: #ffffff;
+              border-radius: 24px;
+              box-shadow: 0 18px 45px rgba(15, 23, 42, 0.28);
+              padding: 32px 28px;
+              text-align: center;
+            }
+          </style>
         </head>
         <body>
-          <main>
+          <main class="card">
             <h1>⚠️ Este código ya fue registrado</h1>
             <p>Si crees que es un error, contacta con el administrador.</p>
           </main>
