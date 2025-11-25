@@ -142,7 +142,7 @@ function getFinCorteConfig(bloque) {
       ],
       seleccionVariedad: 'freedom',
     };
-  } else if (b === '1A') {
+  } else if (b === '1,1') {
     return {
       variedades: [
         { value: 'freedom', label: 'Freedom' },
