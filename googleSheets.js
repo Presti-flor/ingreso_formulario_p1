@@ -38,10 +38,10 @@ function generateUniqueId() {
 async function existsSameRecord({ id, bloque }) {
   if (!id || !bloque) return false; // sin id o sin bloque no hacemos control
 
-const bloqueStr = String(bloque).replace(/[^0-9A-Za-z.]/g, '').trim();
+  const idStr = String(id).trim();
+  const bloqueStr = String(bloque).trim();  // 👈 ya NO limpiamos el punto
 
   try {
-    // Leemos A:H para tener bloque (B) e id (H)
     const resp = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: 'Ingreso Fin y Nac!A:H',
@@ -50,8 +50,8 @@ const bloqueStr = String(bloque).replace(/[^0-9A-Za-z.]/g, '').trim();
     const rows = resp.data.values || [];
 
     const found = rows.some(row => {
-      const sheetBloque = (row[1] || '').toString().replace(/[^0-9]/g, '').trim(); // Columna B
-      const sheetId = (row[7] || '').toString().trim();                             // Columna H
+      const sheetBloque = (row[1] || '').toString().trim(); // Columna B
+      const sheetId = (row[7] || '').toString().trim();     // Columna H
       return sheetId === idStr && sheetBloque === bloqueStr;
     });
 
@@ -74,7 +74,7 @@ const bloqueStr = String(bloque).replace(/[^0-9A-Za-z.]/g, '').trim();
 // Función para agregar una nueva fila
 // Espera un objeto: { id, fecha, bloque, variedad, tallos, etapa, tipo, tamano }
 async function addRecord(data) {
-  const sanitizedBloque = String(data.bloque || '').replace(/[^0-9]/g, '');
+  const bloqueStr = data.bloque != null ? String(data.bloque).trim() : ''; // 👈 conservamos "1.1"
 
   // Si el servidor/envía un id, usamos ese. Si no, generamos uno.
   const finalId = data.id || generateUniqueId();
@@ -82,7 +82,7 @@ async function addRecord(data) {
   // Depuración sana
   console.log('Datos antes de enviar a Google Sheets:', {
     fecha: data.fecha,
-    bloque: sanitizedBloque,
+    bloque: bloqueStr,
     variedad: data.variedad,
     tamano: data.tamano,
     tallos: data.tallos,
@@ -100,7 +100,7 @@ async function addRecord(data) {
         values: [
           [
             data.fecha,                 // A: fecha
-            sanitizedBloque,            // B: bloque
+            bloqueStr,                  // B: bloque (con punto si lo tiene)
             data.variedad || '',        // C: variedad
             data.tamano || '',          // D: tamano
             data.tallos ?? '',          // E: tallos
