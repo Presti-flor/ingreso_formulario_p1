@@ -90,7 +90,11 @@ function allowedSizes(variedad, bloque) {
   const v = (variedad || '').toLowerCase().trim();
   const b = String(bloque || '').trim();
   if (v === 'freedom') return ['largo', 'corto', 'ruso'];
-  if (v === 'queen berry') return ['no aplica', 'ruso'];
+  if (v === 'queen berry') return ['NA', 'ruso'];
+  if (v === 'momentum') return ['NA','ruso'];
+  if (v === 'vendela') return ['NA','ruso'];
+  if (v === 'tifany') return ['NA','ruso'];
+  if (v === 'yellow bikini') return ['NA','ruso'];
   if (v === 'vendela' && b === '1') return ['ruso', 'na']; // NA se muestra pero se guarda vacío
   return [];
 }
@@ -676,8 +680,11 @@ app.get('/', (req, res) => {
           const v = (variedad || '').toLowerCase().trim();
           const b = String(bloque || '').trim();
           if (v === 'freedom') return ['largo','corto','ruso'];
-          if (v === 'queen berry') return ['no aplica','ruso'];
-          if (v === 'vendela' && b === '1') return ['ruso','na'];
+          if (v === 'queen berry') return ['NA','ruso'];
+          if (v === 'momentum') return ['NA','ruso'];
+          if (v === 'vendela') return ['NA','ruso'];
+          if (v === 'tifany') return ['NA','ruso'];
+          if (v === 'yellow bikini') return ['NA','ruso'];
           return [];
         }
 
