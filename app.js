@@ -466,7 +466,7 @@ app.get('/', (req, res) => {
                 ${variedades.map(v => `<option value="${v.value}">${v.label}</option>`).join('')}
               </select>
 
-              <label for="numero_tallos">Número de tallos (por defecto 25):</label>
+              <label for="numero_tallos">Número de tallos 25 o Ingresa otro Valor :</label>
               <input type="number" name="numero_tallos" required min="1" inputmode="numeric" value="25" />
 
               <input type="hidden" name="bloque" value="${bloque}" />
