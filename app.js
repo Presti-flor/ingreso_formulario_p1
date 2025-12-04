@@ -332,7 +332,7 @@ app.get('/', (req, res) => {
   const tipo = req.query.tipo || '';
   const id = req.query.id || ''; // ⬅️ ID VIENE POR QUERY
 
-  // ======= FORMULARIO TIPO NACIONAL (tema naranja) =============
+  // ======= FORMULARIO TIPO NACIONAL (tema naranja) ============= 
   if (tipo === 'nacional') {
     // 👇 Ahora nacional usa las MISMAS variedades que fin de corte
     const { variedades } = getFinCorteConfig(bloque);
@@ -466,8 +466,8 @@ app.get('/', (req, res) => {
                 ${variedades.map(v => `<option value="${v.value}">${v.label}</option>`).join('')}
               </select>
 
-              <label for="numero_tallos">Número de tallos:</label>
-              <input type="number" name="numero_tallos" required min="1" inputmode="numeric" />
+              <label for="numero_tallos">Número de tallos (por defecto 25):</label>
+              <input type="number" name="numero_tallos" required min="1" inputmode="numeric" value="25" />
 
               <input type="hidden" name="bloque" value="${bloque}" />
               <input type="hidden" name="etapa" value="${etapa}" />
@@ -955,3 +955,5 @@ app.post('/submit', ipWhitelist, async (req, res) => {
 app.listen(port, () => {
   console.log(`Servidor escuchando en http://localhost:${port}`);
 });
+
+
